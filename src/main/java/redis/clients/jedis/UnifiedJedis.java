@@ -44,7 +44,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   protected final ConnectionProvider provider;
   protected final CommandExecutor executor;
   private final CommandObjects commandObjects;
-  private final GraphCommandObjects graphCommandObjects;
+  private final GraphCommandObjects graphCommandObjects = new GraphCommandObjects(this);
   private JedisBroadcastAndRoundRobinConfig broadcastAndRoundRobinConfig = null;
 
   public UnifiedJedis() {
@@ -87,8 +87,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     this.provider = provider;
     this.executor = new DefaultCommandExecutor(provider);
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   /**
@@ -111,7 +109,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     this.provider = null;
     this.executor = new SimpleCommandExecutor(connection);
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
   }
 
   public UnifiedJedis(Set<HostAndPort> jedisClusterNodes, JedisClientConfig clientConfig, int maxAttempts) {
@@ -132,32 +129,24 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     this.provider = provider;
     this.executor = new ClusterCommandExecutor(provider, maxAttempts, maxTotalRetriesDuration);
     this.commandObjects = new ClusterCommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   public UnifiedJedis(ShardedConnectionProvider provider) {
     this.provider = provider;
     this.executor = new DefaultCommandExecutor(provider);
     this.commandObjects = new ShardedCommandObjects(provider.getHashingAlgo());
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   public UnifiedJedis(ShardedConnectionProvider provider, Pattern tagPattern) {
     this.provider = provider;
     this.executor = new DefaultCommandExecutor(provider);
     this.commandObjects = new ShardedCommandObjects(provider.getHashingAlgo(), tagPattern);
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   public UnifiedJedis(ConnectionProvider provider, int maxAttempts, Duration maxTotalRetriesDuration) {
     this.provider = provider;
     this.executor = new RetryableCommandExecutor(provider, maxAttempts, maxTotalRetriesDuration);
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   /**
@@ -170,8 +159,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     this.provider = null;
     this.executor = executor;
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   @Override
@@ -4220,6 +4207,10 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     return executeCommand(commandObjects.tsMRange(multiRangeParams));
   }
 
+  public TsMRangeRoundRobin tsMRangeRoundRobin(TSMRangeParams multiRangeParams) {
+    return new TsMRangeRoundRobin(provider, false, multiRangeParams);
+  }
+
   @Override
   public List<TSKeyedElements> tsMRevRange(long fromTimestamp, long toTimestamp, String... filters) {
     return executeCommand(commandObjects.tsMRevRange(fromTimestamp, toTimestamp, filters));
@@ -4228,6 +4219,10 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public List<TSKeyedElements> tsMRevRange(TSMRangeParams multiRangeParams) {
     return executeCommand(commandObjects.tsMRevRange(multiRangeParams));
+  }
+
+  public TsMRangeRoundRobin tsMRevRangeRoundRobin(TSMRangeParams multiRangeParams) {
+    return new TsMRangeRoundRobin(provider, true, multiRangeParams);
   }
 
   @Override
@@ -4243,6 +4238,10 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public List<TSKeyValue<TSElement>> tsMGet(TSMGetParams multiGetParams, String... filters) {
     return executeCommand(commandObjects.tsMGet(multiGetParams, filters));
+  }
+
+  public TsMGetRoundRobin tsMGetRoundRobin(TSMGetParams multiGetParams, String... filters) {
+    return new TsMGetRoundRobin(provider, multiGetParams, filters);
   }
 
   @Override

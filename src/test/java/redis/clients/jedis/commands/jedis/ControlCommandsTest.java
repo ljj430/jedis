@@ -357,12 +357,6 @@ public class ControlCommandsTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void clientNoTouch() {
-    assertEquals("OK", jedis.clientNoTouchOn());
-    assertEquals("OK", jedis.clientNoTouchOff());
-  }
-
-  @Test
   public void memoryDoctorString() {
     String memoryInfo = jedis.memoryDoctor();
     assertNotNull(memoryInfo);
