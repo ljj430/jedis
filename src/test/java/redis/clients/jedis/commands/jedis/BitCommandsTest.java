@@ -35,7 +35,6 @@ public class BitCommandsTest extends JedisCommandsTestBase {
     String foo = "foo";
 
     jedis.set(foo, String.valueOf(0));
-    //  string "0" with bits: 0011 0000
 
     jedis.setbit(foo, 3, true);
     jedis.setbit(foo, 7, true);
@@ -43,8 +42,7 @@ public class BitCommandsTest extends JedisCommandsTestBase {
     jedis.setbit(foo, 39, true);
 
     /*
-     * bit:  00110001 / 00000100 / 00000000 / 00000000 / 00000001
-     * byte: 0          1          2          3          4
+     * byte: 0 1 2 3 4 bit: 00010001 / 00000100 / 00000000 / 00000000 / 00000001
      */
     long offset = jedis.bitpos(foo, true);
     assertEquals(2, offset);
@@ -71,7 +69,6 @@ public class BitCommandsTest extends JedisCommandsTestBase {
     byte[] bfoo = { 0x01, 0x02, 0x03, 0x04 };
 
     jedis.set(bfoo, Protocol.toByteArray(0));
-    // bits: 0011 0000
 
     jedis.setbit(bfoo, 3, true);
     jedis.setbit(bfoo, 7, true);
@@ -79,8 +76,7 @@ public class BitCommandsTest extends JedisCommandsTestBase {
     jedis.setbit(bfoo, 39, true);
 
     /*
-     * bit:  00110001 / 00000100 / 00000000 / 00000000 / 00000001
-     * byte: 0          1          2          3          4
+     * byte: 0 1 2 3 4 bit: 00010001 / 00000100 / 00000000 / 00000000 / 00000001
      */
     long offset = jedis.bitpos(bfoo, true);
     assertEquals(2, offset);
@@ -111,8 +107,7 @@ public class BitCommandsTest extends JedisCommandsTestBase {
     }
 
     /*
-     * bit:  11111111
-     * byte: 0
+     * byte: 0 bit: 11111111
      */
     long offset = jedis.bitpos(foo, false);
     // offset should be last index + 1
@@ -129,8 +124,7 @@ public class BitCommandsTest extends JedisCommandsTestBase {
     }
 
     /*
-     * bit:  11111111 / 11111111 / 11111111 / 11111111 / 11111111
-     * byte: 0          1          2          3          4
+     * byte: 0 1 2 3 4 bit: 11111111 / 11111111 / 11111111 / 11111111 / 11111111
      */
     long offset = jedis.bitpos(foo, false, new BitPosParams(2, 3));
     // offset should be -1

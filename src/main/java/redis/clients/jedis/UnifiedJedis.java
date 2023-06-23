@@ -17,7 +17,6 @@ import redis.clients.jedis.commands.ProtocolCommand;
 import redis.clients.jedis.commands.SampleBinaryKeyedCommands;
 import redis.clients.jedis.commands.SampleKeyedCommands;
 import redis.clients.jedis.commands.RedisModuleCommands;
-import redis.clients.jedis.exceptions.JedisException;
 import redis.clients.jedis.executors.*;
 import redis.clients.jedis.graph.GraphCommandObjects;
 import redis.clients.jedis.graph.ResultSet;
@@ -31,7 +30,7 @@ import redis.clients.jedis.resps.*;
 import redis.clients.jedis.search.*;
 import redis.clients.jedis.search.aggr.AggregationBuilder;
 import redis.clients.jedis.search.aggr.AggregationResult;
-import redis.clients.jedis.search.aggr.FtAggregateIteration;
+import redis.clients.jedis.search.aggr.FtAggregateRoundRobin;
 import redis.clients.jedis.search.schemafields.SchemaField;
 import redis.clients.jedis.timeseries.*;
 import redis.clients.jedis.util.IOUtils;
@@ -42,11 +41,10 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     SampleKeyedCommands, SampleBinaryKeyedCommands, RedisModuleCommands,
     AutoCloseable {
 
-  protected RedisProtocol protocol = null;
   protected final ConnectionProvider provider;
   protected final CommandExecutor executor;
-  protected final CommandObjects commandObjects;
-  private final GraphCommandObjects graphCommandObjects;
+  private final CommandObjects commandObjects;
+  private final GraphCommandObjects graphCommandObjects = new GraphCommandObjects(this);
   private JedisBroadcastAndRoundRobinConfig broadcastAndRoundRobinConfig = null;
 
   public UnifiedJedis() {
@@ -65,8 +63,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   public UnifiedJedis(final URI uri) {
     this(JedisURIHelper.getHostAndPort(uri), DefaultJedisClientConfig.builder()
         .user(JedisURIHelper.getUser(uri)).password(JedisURIHelper.getPassword(uri))
-        .database(JedisURIHelper.getDBIndex(uri)).protocol(JedisURIHelper.getRedisProtocol(uri))
-        .ssl(JedisURIHelper.isRedisSSLScheme(uri)).build());
+        .database(JedisURIHelper.getDBIndex(uri)).ssl(JedisURIHelper.isRedisSSLScheme(uri)).build());
   }
 
   public UnifiedJedis(final URI uri, JedisClientConfig config) {
@@ -76,7 +73,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
         .blockingSocketTimeoutMillis(config.getBlockingSocketTimeoutMillis())
         .user(JedisURIHelper.getUser(uri)).password(JedisURIHelper.getPassword(uri))
         .database(JedisURIHelper.getDBIndex(uri)).clientName(config.getClientName())
-        .protocol(JedisURIHelper.getRedisProtocol(uri))
         .ssl(JedisURIHelper.isRedisSSLScheme(uri)).sslSocketFactory(config.getSslSocketFactory())
         .sslParameters(config.getSslParameters()).hostnameVerifier(config.getHostnameVerifier())
         .build());
@@ -85,25 +81,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   public UnifiedJedis(HostAndPort hostAndPort, JedisClientConfig clientConfig) {
 //    this(new Connection(hostAndPort, clientConfig));
     this(new PooledConnectionProvider(hostAndPort, clientConfig));
-    RedisProtocol proto = clientConfig.getRedisProtocol();
-    if (proto != null) commandObjects.setProtocol(proto);
   }
 
   public UnifiedJedis(ConnectionProvider provider) {
     this.provider = provider;
     this.executor = new DefaultCommandExecutor(provider);
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
-    try (Connection conn = this.provider.getConnection()) {
-      if (conn != null) {
-        RedisProtocol proto = conn.getRedisProtocol();
-        if (proto != null) commandObjects.setProtocol(proto);
-      }
-    //} catch (JedisAccessControlException ace) {
-    } catch (JedisException je) { // TODO: use specific exception(s)
-      // use default protocol
-    }
   }
 
   /**
@@ -117,16 +100,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   /**
-   * The constructor to directly use a custom {@link JedisSocketFactory}.
-   * <p>
-   * WARNING: Using this constructor means a {@link NullPointerException} will be occurred if
-   * {@link UnifiedJedis#provider} is accessed.
-   */
-  public UnifiedJedis(JedisSocketFactory socketFactory, JedisClientConfig clientConfig) {
-    this(new Connection(socketFactory, clientConfig));
-  }
-
-  /**
    * The constructor to directly use a {@link Connection}.
    * <p>
    * WARNING: Using this constructor means a {@link NullPointerException} will be occurred if
@@ -136,84 +109,44 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     this.provider = null;
     this.executor = new SimpleCommandExecutor(connection);
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    RedisProtocol proto = connection.getRedisProtocol();
-    if (proto == RedisProtocol.RESP3) this.commandObjects.setProtocol(proto);
   }
 
   public UnifiedJedis(Set<HostAndPort> jedisClusterNodes, JedisClientConfig clientConfig, int maxAttempts) {
     this(new ClusterConnectionProvider(jedisClusterNodes, clientConfig), maxAttempts,
         Duration.ofMillis(maxAttempts * clientConfig.getSocketTimeoutMillis()));
-    RedisProtocol proto = clientConfig.getRedisProtocol();
-    if (proto != null) commandObjects.setProtocol(proto);
   }
 
   public UnifiedJedis(Set<HostAndPort> jedisClusterNodes, JedisClientConfig clientConfig, int maxAttempts, Duration maxTotalRetriesDuration) {
     this(new ClusterConnectionProvider(jedisClusterNodes, clientConfig), maxAttempts, maxTotalRetriesDuration);
-    RedisProtocol proto = clientConfig.getRedisProtocol();
-    if (proto != null) commandObjects.setProtocol(proto);
   }
 
   public UnifiedJedis(Set<HostAndPort> jedisClusterNodes, JedisClientConfig clientConfig,
       GenericObjectPoolConfig<Connection> poolConfig, int maxAttempts, Duration maxTotalRetriesDuration) {
     this(new ClusterConnectionProvider(jedisClusterNodes, clientConfig, poolConfig), maxAttempts, maxTotalRetriesDuration);
-    RedisProtocol proto = clientConfig.getRedisProtocol();
-    if (proto != null) commandObjects.setProtocol(proto);
   }
 
   public UnifiedJedis(ClusterConnectionProvider provider, int maxAttempts, Duration maxTotalRetriesDuration) {
     this.provider = provider;
     this.executor = new ClusterCommandExecutor(provider, maxAttempts, maxTotalRetriesDuration);
     this.commandObjects = new ClusterCommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
-  /**
-   * @deprecated Sharding/Sharded feature will be removed in next major release.
-   */
-  @Deprecated
   public UnifiedJedis(ShardedConnectionProvider provider) {
     this.provider = provider;
     this.executor = new DefaultCommandExecutor(provider);
     this.commandObjects = new ShardedCommandObjects(provider.getHashingAlgo());
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
-  /**
-   * @deprecated Sharding/Sharded feature will be removed in next major release.
-   */
-  @Deprecated
   public UnifiedJedis(ShardedConnectionProvider provider, Pattern tagPattern) {
     this.provider = provider;
     this.executor = new DefaultCommandExecutor(provider);
     this.commandObjects = new ShardedCommandObjects(provider.getHashingAlgo(), tagPattern);
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   public UnifiedJedis(ConnectionProvider provider, int maxAttempts, Duration maxTotalRetriesDuration) {
     this.provider = provider;
     this.executor = new RetryableCommandExecutor(provider, maxAttempts, maxTotalRetriesDuration);
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
-  }
-
-  /**
-   * Constructor which supports multiple cluster/database endpoints each with their own isolated connection pool.
-   * <p>
-   * With this Constructor users can seamlessly failover to Disaster Recovery (DR), Backup, and Active-Active cluster(s)
-   * by using simple configuration which is passed through from Resilience4j - https://resilience4j.readme.io/docs
-   * <p>
-   */
-  public UnifiedJedis(MultiClusterPooledConnectionProvider provider) {
-    this.provider = provider;
-    this.executor = new CircuitBreakerCommandExecutor(provider);
-    this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   /**
@@ -226,18 +159,11 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     this.provider = null;
     this.executor = executor;
     this.commandObjects = new CommandObjects();
-    this.graphCommandObjects = new GraphCommandObjects(this);
-    this.graphCommandObjects.setBaseCommandArgumentsCreator((comm) -> this.commandObjects.commandArguments(comm));
   }
 
   @Override
   public void close() {
     IOUtils.closeQuietly(this.executor);
-  }
-
-  protected final void setProtocol(RedisProtocol protocol) {
-    this.protocol = protocol;
-    this.commandObjects.setProtocol(this.protocol);
   }
 
   public final <T> T executeCommand(CommandObject<T> commandObject) {
@@ -262,7 +188,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   public void setBroadcastAndRoundRobinConfig(JedisBroadcastAndRoundRobinConfig config) {
     this.broadcastAndRoundRobinConfig = config;
-    this.commandObjects.setBroadcastAndRoundRobinConfig(this.broadcastAndRoundRobinConfig);
   }
 
   public String ping() {
@@ -656,23 +581,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     return executeCommand(commandObjects.scan(cursor, params, type));
   }
 
-  /**
-   * @param batchCount COUNT for each batch execution
-   * @param match pattern
-   * @return scan iteration
-   */
-  public ScanIteration scanIteration(int batchCount, String match) {
-    return new ScanIteration(provider, batchCount, match);
+  public ScanRoundRobin scan(int batchCount, String match) {
+    return new ScanRoundRobin(provider, batchCount, match);
   }
 
-  /**
-   * @param batchCount COUNT for each batch execution
-   * @param match pattern
-   * @param type key type
-   * @return scan iteration
-   */
-  public ScanIteration scanIteration(int batchCount, String match, String type) {
-    return new ScanIteration(provider, batchCount, match, type);
+  public ScanRoundRobin scan(int batchCount, String match, String type) {
+    return new ScanRoundRobin(provider, batchCount, match, type);
   }
 
   @Override
@@ -723,11 +637,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public String setGet(String key, String value) {
-    return executeCommand(commandObjects.setGet(key, value));
-  }
-
-  @Override
   public String setGet(String key, String value, SetParams params) {
     return executeCommand(commandObjects.setGet(key, value, params));
   }
@@ -755,11 +664,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public byte[] get(byte[] key) {
     return executeCommand(commandObjects.get(key));
-  }
-
-  @Override
-  public byte[] setGet(byte[] key, byte[] value) {
-    return executeCommand(commandObjects.setGet(key, value));
   }
 
   @Override
@@ -1048,6 +952,16 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
+  public LCSMatchResult strAlgoLCSKeys(String keyA, String keyB, StrAlgoLCSParams params) {
+    return executeCommand(commandObjects.strAlgoLCSKeys(keyA, keyB, params));
+  }
+
+  @Override
+  public LCSMatchResult strAlgoLCSKeys(byte[] keyA, byte[] keyB, StrAlgoLCSParams params) {
+    return executeCommand(commandObjects.strAlgoLCSKeys(keyA, keyB, params));
+  }
+
+  @Override
   public LCSMatchResult lcs(String keyA, String keyB, LCSParams params) {
     return executeCommand(commandObjects.lcs(keyA, keyB, params));
   }
@@ -1245,7 +1159,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<String, String> blpop(double timeout, String key) {
+  public KeyedListElement blpop(double timeout, String key) {
     return executeCommand(commandObjects.blpop(timeout, key));
   }
 
@@ -1255,7 +1169,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<String, String> brpop(double timeout, String key) {
+  public KeyedListElement brpop(double timeout, String key) {
     return executeCommand(commandObjects.brpop(timeout, key));
   }
 
@@ -1265,7 +1179,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<String, String> blpop(double timeout, String... keys) {
+  public KeyedListElement blpop(double timeout, String... keys) {
     return executeCommand(commandObjects.blpop(timeout, keys));
   }
 
@@ -1275,7 +1189,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<String, String> brpop(double timeout, String... keys) {
+  public KeyedListElement brpop(double timeout, String... keys) {
     return executeCommand(commandObjects.brpop(timeout, keys));
   }
 
@@ -1285,7 +1199,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<byte[], byte[]> blpop(double timeout, byte[]... keys) {
+  public List<byte[]> blpop(double timeout, byte[]... keys) {
     return executeCommand(commandObjects.blpop(timeout, keys));
   }
 
@@ -1295,7 +1209,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<byte[], byte[]> brpop(double timeout, byte[]... keys) {
+  public List<byte[]> brpop(double timeout, byte[]... keys) {
     return executeCommand(commandObjects.brpop(timeout, keys));
   }
 
@@ -1350,12 +1264,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<String, List<String>> blmpop(double timeout, ListDirection direction, String... keys) {
+  public KeyValue<String, List<String>> blmpop(long timeout, ListDirection direction, String... keys) {
     return executeCommand(commandObjects.blmpop(timeout, direction, keys));
   }
 
   @Override
-  public KeyValue<String, List<String>> blmpop(double timeout, ListDirection direction, int count, String... keys) {
+  public KeyValue<String, List<String>> blmpop(long timeout, ListDirection direction, int count, String... keys) {
     return executeCommand(commandObjects.blmpop(timeout, direction, count, keys));
   }
 
@@ -1370,12 +1284,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<byte[], List<byte[]>> blmpop(double timeout, ListDirection direction, byte[]... keys) {
+  public KeyValue<byte[], List<byte[]>> blmpop(long timeout, ListDirection direction, byte[]... keys) {
     return executeCommand(commandObjects.blmpop(timeout, direction, keys));
   }
 
   @Override
-  public KeyValue<byte[], List<byte[]>> blmpop(double timeout, ListDirection direction, int count, byte[]... keys) {
+  public KeyValue<byte[], List<byte[]>> blmpop(long timeout, ListDirection direction, int count, byte[]... keys) {
     return executeCommand(commandObjects.blmpop(timeout, direction, count, keys));
   }
   // List commands
@@ -1532,7 +1446,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<Map.Entry<String, String>> hrandfieldWithValues(String key, long count) {
+  public Map<String, String> hrandfieldWithValues(String key, long count) {
     return executeCommand(commandObjects.hrandfieldWithValues(key, count));
   }
 
@@ -1557,7 +1471,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<Map.Entry<byte[], byte[]>> hrandfieldWithValues(byte[] key, long count) {
+  public Map<byte[], byte[]> hrandfieldWithValues(byte[] key, long count) {
     return executeCommand(commandObjects.hrandfieldWithValues(key, count));
   }
 
@@ -1851,16 +1765,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<Long, Double> zrankWithScore(String key, String member) {
-    return executeCommand(commandObjects.zrankWithScore(key, member));
-  }
-
-  @Override
-  public KeyValue<Long, Double> zrevrankWithScore(String key, String member) {
-    return executeCommand(commandObjects.zrevrankWithScore(key, member));
-  }
-
-  @Override
   public long zrem(byte[] key, byte[]... members) {
     return executeCommand(commandObjects.zrem(key, members));
   }
@@ -1883,16 +1787,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public Long zrevrank(byte[] key, byte[] member) {
     return executeCommand(commandObjects.zrevrank(key, member));
-  }
-
-  @Override
-  public KeyValue<Long, Double> zrankWithScore(byte[] key, byte[] member) {
-    return executeCommand(commandObjects.zrankWithScore(key, member));
-  }
-
-  @Override
-  public KeyValue<Long, Double> zrevrankWithScore(byte[] key, byte[] member) {
-    return executeCommand(commandObjects.zrevrankWithScore(key, member));
   }
 
   @Override
@@ -2346,65 +2240,53 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<String, Tuple> bzpopmax(double timeout, String... keys) {
+  public KeyedZSetElement bzpopmax(double timeout, String... keys) {
     return executeCommand(commandObjects.bzpopmax(timeout, keys));
   }
 
   @Override
-  public KeyValue<String, Tuple> bzpopmin(double timeout, String... keys) {
+  public KeyedZSetElement bzpopmin(double timeout, String... keys) {
     return executeCommand(commandObjects.bzpopmin(timeout, keys));
   }
 
   @Override
-  public KeyValue<byte[], Tuple> bzpopmax(double timeout, byte[]... keys) {
+  public List<byte[]> bzpopmax(double timeout, byte[]... keys) {
     return executeCommand(commandObjects.bzpopmax(timeout, keys));
   }
 
   @Override
-  public KeyValue<byte[], Tuple> bzpopmin(double timeout, byte[]... keys) {
+  public List<byte[]> bzpopmin(double timeout, byte[]... keys) {
     return executeCommand(commandObjects.bzpopmin(timeout, keys));
   }
 
   @Override
-  public List<String> zdiff(String... keys) {
+  public Set<String> zdiff(String... keys) {
     return executeCommand(commandObjects.zdiff(keys));
   }
 
   @Override
-  public List<Tuple> zdiffWithScores(String... keys) {
+  public Set<Tuple> zdiffWithScores(String... keys) {
     return executeCommand(commandObjects.zdiffWithScores(keys));
   }
 
   @Override
-  @Deprecated
   public long zdiffStore(String dstkey, String... keys) {
     return executeCommand(commandObjects.zdiffStore(dstkey, keys));
   }
 
   @Override
-  public long zdiffstore(String dstkey, String... keys) {
-    return executeCommand(commandObjects.zdiffstore(dstkey, keys));
-  }
-
-  @Override
-  public List<byte[]> zdiff(byte[]... keys) {
+  public Set<byte[]> zdiff(byte[]... keys) {
     return executeCommand(commandObjects.zdiff(keys));
   }
 
   @Override
-  public List<Tuple> zdiffWithScores(byte[]... keys) {
+  public Set<Tuple> zdiffWithScores(byte[]... keys) {
     return executeCommand(commandObjects.zdiffWithScores(keys));
   }
 
   @Override
-  @Deprecated
   public long zdiffStore(byte[] dstkey, byte[]... keys) {
     return executeCommand(commandObjects.zdiffStore(dstkey, keys));
-  }
-
-  @Override
-  public long zdiffstore(byte[] dstkey, byte[]... keys) {
-    return executeCommand(commandObjects.zdiffstore(dstkey, keys));
   }
 
   @Override
@@ -2418,12 +2300,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<String> zinter(ZParams params, String... keys) {
+  public Set<String> zinter(ZParams params, String... keys) {
     return executeCommand(commandObjects.zinter(params, keys));
   }
 
   @Override
-  public List<Tuple> zinterWithScores(ZParams params, String... keys) {
+  public Set<Tuple> zinterWithScores(ZParams params, String... keys) {
     return executeCommand(commandObjects.zinterWithScores(params, keys));
   }
 
@@ -2458,22 +2340,22 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<byte[]> zinter(ZParams params, byte[]... keys) {
+  public Set<byte[]> zinter(ZParams params, byte[]... keys) {
     return executeCommand(commandObjects.zinter(params, keys));
   }
 
   @Override
-  public List<Tuple> zinterWithScores(ZParams params, byte[]... keys) {
+  public Set<Tuple> zinterWithScores(ZParams params, byte[]... keys) {
     return executeCommand(commandObjects.zinterWithScores(params, keys));
   }
 
   @Override
-  public List<String> zunion(ZParams params, String... keys) {
+  public Set<String> zunion(ZParams params, String... keys) {
     return executeCommand(commandObjects.zunion(params, keys));
   }
 
   @Override
-  public List<Tuple> zunionWithScores(ZParams params, String... keys) {
+  public Set<Tuple> zunionWithScores(ZParams params, String... keys) {
     return executeCommand(commandObjects.zunionWithScores(params, keys));
   }
 
@@ -2488,12 +2370,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<byte[]> zunion(ZParams params, byte[]... keys) {
+  public Set<byte[]> zunion(ZParams params, byte[]... keys) {
     return executeCommand(commandObjects.zunion(params, keys));
   }
 
   @Override
-  public List<Tuple> zunionWithScores(ZParams params, byte[]... keys) {
+  public Set<Tuple> zunionWithScores(ZParams params, byte[]... keys) {
     return executeCommand(commandObjects.zunionWithScores(params, keys));
   }
 
@@ -2518,12 +2400,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<String, List<Tuple>> bzmpop(double timeout, SortedSetOption option, String... keys) {
+  public KeyValue<String, List<Tuple>> bzmpop(long timeout, SortedSetOption option, String... keys) {
     return executeCommand(commandObjects.bzmpop(timeout, option, keys));
   }
 
   @Override
-  public KeyValue<String, List<Tuple>> bzmpop(double timeout, SortedSetOption option, int count, String... keys) {
+  public KeyValue<String, List<Tuple>> bzmpop(long timeout, SortedSetOption option, int count, String... keys) {
     return executeCommand(commandObjects.bzmpop(timeout, option, count, keys));
   }
 
@@ -2538,12 +2420,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<byte[], List<Tuple>> bzmpop(double timeout, SortedSetOption option, byte[]... keys) {
+  public KeyValue<byte[], List<Tuple>> bzmpop(long timeout, SortedSetOption option, byte[]... keys) {
     return executeCommand(commandObjects.bzmpop(timeout, option, keys));
   }
 
   @Override
-  public KeyValue<byte[], List<Tuple>> bzmpop(double timeout, SortedSetOption option, int count, byte[]... keys) {
+  public KeyValue<byte[], List<Tuple>> bzmpop(long timeout, SortedSetOption option, int count, byte[]... keys) {
     return executeCommand(commandObjects.bzmpop(timeout, option, count, keys));
   }
   // Sorted Set commands
@@ -2964,6 +2846,11 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
+  public List<StreamPendingEntry> xpending(String key, String groupName, StreamEntryID start, StreamEntryID end, int count, String consumerName) {
+    return executeCommand(commandObjects.xpending(key, groupName, start, end, count, consumerName));
+  }
+
+  @Override
   public List<StreamPendingEntry> xpending(String key, String groupName, XPendingParams params) {
     return executeCommand(commandObjects.xpending(key, groupName, params));
   }
@@ -3019,6 +2906,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
+  @Deprecated
+  public List<StreamGroupInfo> xinfoGroup(String key) {
+    return executeCommand(commandObjects.xinfoGroup(key));
+  }
+
+  @Override
   public List<StreamGroupInfo> xinfoGroups(String key) {
     return executeCommand(commandObjects.xinfoGroups(key));
   }
@@ -3026,11 +2919,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public List<StreamConsumersInfo> xinfoConsumers(String key, String group) {
     return executeCommand(commandObjects.xinfoConsumers(key, group));
-  }
-
-  @Override
-  public List<StreamConsumerInfo> xinfoConsumers2(String key, String group) {
-    return executeCommand(commandObjects.xinfoConsumers2(key, group));
   }
 
   @Override
@@ -3125,6 +3013,11 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
+  public List<Object> xpending(byte[] key, byte[] groupName, byte[] start, byte[] end, int count, byte[] consumerName) {
+    return executeCommand(commandObjects.xpending(key, groupName, start, end, count, consumerName));
+  }
+
+  @Override
   public List<Object> xpending(byte[] key, byte[] groupName, XPendingParams params) {
     return executeCommand(commandObjects.xpending(key, groupName, params));
   }
@@ -3162,6 +3055,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public Object xinfoStreamFull(byte[] key, int count) {
     return executeCommand(commandObjects.xinfoStreamFull(key, count));
+  }
+
+  @Override
+  @Deprecated
+  public List<Object> xinfoGroup(byte[] key) {
+    return executeCommand(commandObjects.xinfoGroup(key));
   }
 
   @Override
@@ -3471,16 +3370,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public KeyValue<Long, Long> waitAOF(String sampleKey, long numLocal, long numReplicas, long timeout) {
-    return executeCommand(commandObjects.waitAOF(sampleKey, numLocal, numReplicas, timeout));
-  }
-
-  @Override
-  public KeyValue<Long, Long> waitAOF(byte[] sampleKey, long numLocal, long numReplicas, long timeout) {
-    return executeCommand(commandObjects.waitAOF(sampleKey, numLocal, numReplicas, timeout));
-  }
-
-  @Override
   public Object eval(String script, String sampleKey) {
     return executeCommand(commandObjects.eval(script, sampleKey));
   }
@@ -3613,6 +3502,14 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
       jedisPubSub.proceedWithPatterns(connection, patterns);
     }
   }
+
+  public LCSMatchResult strAlgoLCSStrings(final String strA, final String strB, final StrAlgoLCSParams params) {
+    return executeCommand(commandObjects.strAlgoLCSStrings(strA, strB, params));
+  }
+
+  public LCSMatchResult strAlgoLCSStrings(byte[] strA, byte[] strB, StrAlgoLCSParams params) {
+    return executeCommand(commandObjects.strAlgoLCSStrings(strA, strB, params));
+  }
   // Random node commands
 
   // RediSearch commands
@@ -3648,14 +3545,14 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   /**
    * {@link FTSearchParams#limit(int, int)} will be ignored.
-   * @param batchSize batch size
-   * @param indexName index name
-   * @param query query
+   * @param batchSize
+   * @param indexName
+   * @param query
    * @param params limit will be ignored
-   * @return search iteration
+   * @return search
    */
-  public FtSearchIteration ftSearchIteration(int batchSize, String indexName, String query, FTSearchParams params) {
-    return new FtSearchIteration(provider, batchSize, indexName, query, params);
+  public FtSearchRoundRobin ftSearch(int batchSize, String indexName, String query, FTSearchParams params) {
+    return new FtSearchRoundRobin(provider, batchSize, indexName, query, params);
   }
 
   @Override
@@ -3665,13 +3562,13 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   /**
    * {@link Query#limit(java.lang.Integer, java.lang.Integer)} will be ignored.
-   * @param batchSize batch size
-   * @param indexName index name
+   * @param batchSize
+   * @param indexName
    * @param query limit will be ignored
-   * @return search iteration
+   * @return search
    */
-  public FtSearchIteration ftSearchIteration(int batchSize, String indexName, Query query) {
-    return new FtSearchIteration(provider, batchSize, indexName, query);
+  public FtSearchRoundRobin ftSearch(int batchSize, String indexName, Query query) {
+    return new FtSearchRoundRobin(provider, batchSize, indexName, query);
   }
 
   @Override
@@ -3704,14 +3601,8 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     return executeCommand(commandObjects.ftCursorDel(indexName, cursorId));
   }
 
-  /**
-   * {@link AggregationBuilder#cursor(int, long) CURSOR} must be set.
-   * @param indexName index name
-   * @param aggr cursor must be set
-   * @return aggregate iteration
-   */
-  public FtAggregateIteration ftAggregateIteration(String indexName, AggregationBuilder aggr) {
-    return new FtAggregateIteration(provider, indexName, aggr);
+  public FtAggregateRoundRobin ftAggregateRoundRobin(String indexName, AggregationBuilder aggr) {
+    return new FtAggregateRoundRobin(provider, indexName, aggr);
   }
 
   @Override
@@ -3917,16 +3808,6 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public String jsonSet(String key, Path path, Object pojo, JsonSetParams params) {
     return executeCommand(commandObjects.jsonSet(key, path, pojo, params));
-  }
-
-  @Override
-  public String jsonMerge(String key, Path2 path, Object object) {
-    return executeCommand(commandObjects.jsonMerge(key, path, object));
-  }
-
-  @Override
-  public String jsonMerge(String key, Path path, Object pojo) {
-    return executeCommand(commandObjects.jsonMerge(key, path, pojo));
   }
 
   @Override
@@ -4317,23 +4198,31 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public Map<String, TSMRangeElements> tsMRange(long fromTimestamp, long toTimestamp, String... filters) {
+  public List<TSKeyedElements> tsMRange(long fromTimestamp, long toTimestamp, String... filters) {
     return executeCommand(commandObjects.tsMRange(fromTimestamp, toTimestamp, filters));
   }
 
   @Override
-  public Map<String, TSMRangeElements> tsMRange(TSMRangeParams multiRangeParams) {
+  public List<TSKeyedElements> tsMRange(TSMRangeParams multiRangeParams) {
     return executeCommand(commandObjects.tsMRange(multiRangeParams));
   }
 
+  public TsMRangeRoundRobin tsMRangeRoundRobin(TSMRangeParams multiRangeParams) {
+    return new TsMRangeRoundRobin(provider, false, multiRangeParams);
+  }
+
   @Override
-  public Map<String, TSMRangeElements> tsMRevRange(long fromTimestamp, long toTimestamp, String... filters) {
+  public List<TSKeyedElements> tsMRevRange(long fromTimestamp, long toTimestamp, String... filters) {
     return executeCommand(commandObjects.tsMRevRange(fromTimestamp, toTimestamp, filters));
   }
 
   @Override
-  public Map<String, TSMRangeElements> tsMRevRange(TSMRangeParams multiRangeParams) {
+  public List<TSKeyedElements> tsMRevRange(TSMRangeParams multiRangeParams) {
     return executeCommand(commandObjects.tsMRevRange(multiRangeParams));
+  }
+
+  public TsMRangeRoundRobin tsMRevRangeRoundRobin(TSMRangeParams multiRangeParams) {
+    return new TsMRangeRoundRobin(provider, true, multiRangeParams);
   }
 
   @Override
@@ -4347,8 +4236,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public Map<String, TSMGetElement> tsMGet(TSMGetParams multiGetParams, String... filters) {
+  public List<TSKeyValue<TSElement>> tsMGet(TSMGetParams multiGetParams, String... filters) {
     return executeCommand(commandObjects.tsMGet(multiGetParams, filters));
+  }
+
+  public TsMGetRoundRobin tsMGetRoundRobin(TSMGetParams multiGetParams, String... filters) {
+    return new TsMGetRoundRobin(provider, multiGetParams, filters);
   }
 
   @Override
@@ -4578,6 +4471,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     return executeCommand(commandObjects.topkQuery(key, items));
   }
 
+  @Deprecated
+  @Override
+  public List<Long> topkCount(String key, String... items) {
+    return executeCommand(commandObjects.topkCount(key, items));
+  }
+
   @Override
   public List<String> topkList(String key) {
     return executeCommand(commandObjects.topkList(key));
@@ -4731,7 +4630,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<List<Object>> graphSlowlog(String graphName) {
+  public List<List<String>> graphSlowlog(String graphName) {
     return executeCommand(commandObjects.graphSlowlog(graphName));
   }
 
@@ -4746,7 +4645,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
   // RedisGraph commands
 
-  public PipelineBase pipelined() {
+  public Object pipelined() {
     if (provider == null) {
       throw new IllegalStateException("It is not allowed to create Pipeline from this " + getClass());
     }
@@ -4802,9 +4701,5 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   public void setJsonObjectMapper(JsonObjectMapper jsonObjectMapper) {
     this.commandObjects.setJsonObjectMapper(jsonObjectMapper);
-  }
-
-  public void setDefaultSearchDialect(int dialect) {
-    this.commandObjects.setDefaultSearchDialect(dialect);
   }
 }

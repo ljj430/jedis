@@ -1,36 +1,31 @@
 package redis.clients.jedis.params;
 
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
+
 
 public class LolwutParams implements IParams {
 
-  private Integer version;
-  private String[] opargs;
+  private int version;
+  private String[] args;
 
   public LolwutParams version(int version) {
     this.version = version;
     return this;
   }
 
-  @Deprecated
   public LolwutParams args(String... args) {
-    return optionalArguments(args);
-  }
-
-  public LolwutParams optionalArguments(String... args) {
-    this.opargs = args;
+    this.args = args;
     return this;
   }
 
   @Override
   public void addParams(CommandArguments args) {
-    if (version != null) {
-      args.add(Keyword.VERSION).add(version);
+    if (this.version != 0) {
+      args.add(this.version);
+    }
 
-      if (opargs != null && opargs.length > 0) {
-        args.addObjects((Object[]) opargs);
-      }
+    if (this.args != null) {
+      args.add(this.args);
     }
   }
 }

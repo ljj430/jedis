@@ -9,9 +9,12 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import redis.clients.jedis.Connection;
 import redis.clients.jedis.Transaction;
 import redis.clients.jedis.graph.Header;
 import redis.clients.jedis.graph.Record;
@@ -22,7 +25,7 @@ import redis.clients.jedis.modules.RedisModuleCommandsTestBase;
 
 public class GraphTransactionTest extends RedisModuleCommandsTestBase {
 
-//  private Connection c;
+  private Connection c;
 
   @BeforeClass
   public static void prepare() {
@@ -39,21 +42,20 @@ public class GraphTransactionTest extends RedisModuleCommandsTestBase {
 //    api.deleteGraph("social");
 //    api.close();
 //  }
-//
-//  @Before
-//  public void createApi() {
-//    c = createConnection();
-//  }
-//
-//  @After
-//  public void deleteGraph() {
-//    c.close();
-//  }
+
+  @Before
+  public void createApi() {
+    c = createConnection();
+  }
+
+  @After
+  public void deleteGraph() {
+    c.close();
+  }
 
   @Test
   public void testMultiExec() {
-//    Transaction transaction = new Transaction(c);
-    Transaction transaction = client.multi();
+    Transaction transaction = new Transaction(c);
 
     transaction.set("x", "1");
     transaction.graphQuery("social", "CREATE (:Person {name:'a'})");
@@ -176,8 +178,7 @@ public class GraphTransactionTest extends RedisModuleCommandsTestBase {
 
   @Test
   public void testMultiExecWithReadOnlyQueries() {
-//    Transaction transaction = new Transaction(c);
-    Transaction transaction = client.multi();
+    Transaction transaction = new Transaction(c);
 
     transaction.set("x", "1");
     transaction.graphQuery("social", "CREATE (:Person {name:'a'})");

@@ -16,12 +16,14 @@ public class IndexDefinition implements IParams {
   }
 
   private final Type type;
+  private boolean async = false;
   private String[] prefixes;
   private String filter;
   private String languageField;
   private String language;
   private String scoreFiled;
   private double score = 1.0; // Default score when score isn't defined
+  private String payloadField;
 
   public IndexDefinition() {
     this(null);
@@ -33,6 +35,15 @@ public class IndexDefinition implements IParams {
 
   public Type getType() {
     return type;
+  }
+
+  public boolean isAsync() {
+    return async;
+  }
+
+  public IndexDefinition setAsync(boolean async) {
+    this.async = async;
+    return this;
   }
 
   public String[] getPrefixes() {
@@ -89,12 +100,29 @@ public class IndexDefinition implements IParams {
     return this;
   }
 
+  public String getPayloadField() {
+    return payloadField;
+  }
+
+  /**
+   * @deprecated Since RediSearch 2.0.0, PAYLOAD_FIELD option is deprecated.
+   */
+  @Deprecated
+  public IndexDefinition setPayloadField(String payloadField) {
+    this.payloadField = payloadField;
+    return this;
+  }
+
   @Override
   public void addParams(CommandArguments args) {
 
     if (type != null) {
       args.add(SearchKeyword.ON.name());
       args.add(type.name());
+    }
+
+    if (async) {
+      args.add(SearchKeyword.ASYNC.name());
     }
 
     if (prefixes != null && prefixes.length > 0) {
@@ -126,6 +154,11 @@ public class IndexDefinition implements IParams {
     if (score != 1.0) {
       args.add(SearchKeyword.SCORE.name());
       args.add(Double.toString(score));
+    }
+
+    if (payloadField != null) {
+      args.add(SearchKeyword.PAYLOAD_FIELD.name());
+      args.add(payloadField);
     }
   }
 }

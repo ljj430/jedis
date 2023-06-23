@@ -1,7 +1,10 @@
 package redis.clients.jedis.params;
 
+import static redis.clients.jedis.Protocol.Keyword.BLOCK;
+import static redis.clients.jedis.Protocol.Keyword.COUNT;
+import static redis.clients.jedis.Protocol.toByteArray;
+
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
 
 public class XReadParams implements IParams {
 
@@ -25,10 +28,13 @@ public class XReadParams implements IParams {
   @Override
   public void addParams(CommandArguments args) {
     if (count != null) {
-      args.add(Keyword.COUNT).add(count);
+      args.add(COUNT);
+      args.add(toByteArray(count));
     }
     if (block != null) {
-      args.add(Keyword.BLOCK).add(block).blocking();
+      args.add(BLOCK);
+      args.add(toByteArray(block));
+      args.blocking();
     }
   }
 }

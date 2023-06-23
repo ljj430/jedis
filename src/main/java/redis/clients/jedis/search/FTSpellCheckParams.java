@@ -69,18 +69,6 @@ public class FTSpellCheckParams implements IParams {
     return this;
   }
 
-  /**
-   * This method will not replace the dialect if it has been already set.
-   * @param dialect dialect
-   * @return this
-   */
-  public FTSpellCheckParams dialectOptional(int dialect) {
-    if (dialect != 0 && this.dialect == null) {
-      this.dialect = dialect;
-    }
-    return this;
-  }
-
   @Override
   public void addParams(CommandArguments args) {
 

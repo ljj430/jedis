@@ -5,7 +5,6 @@ import redis.clients.jedis.args.SaveMode;
 import redis.clients.jedis.exceptions.JedisException;
 import redis.clients.jedis.params.LolwutParams;
 import redis.clients.jedis.params.ShutdownParams;
-import redis.clients.jedis.util.KeyValue;
 
 public interface ServerCommands {
 
@@ -20,6 +19,16 @@ public interface ServerCommands {
   String echo(String string);
 
   byte[] echo(byte[] arg);
+
+  /**
+   * Ask the server to close the connection. The connection is closed as soon as all pending replies
+   * have been written to the client.
+   * @return OK
+   * @deprecated The QUIT command is deprecated, see <a href="https://github.com/redis/redis/issues/11420">#11420</a>.
+   * If available, {@code disconnect()} method in the concerned class can be used instead.
+   */
+  @Deprecated
+  String quit();
 
   /**
    * Delete all the keys of the currently selected DB. This command never fails. The time-complexity
@@ -116,9 +125,15 @@ public interface ServerCommands {
    */
   void shutdown() throws JedisException;
 
-  default void shutdown(SaveMode saveMode) throws JedisException {
-    shutdown(ShutdownParams.shutdownParams().saveMode(saveMode));
-  }
+  /**
+   * @see SaveMode
+   * @param saveMode modifier to alter the data save behavior of SHUTDOWN. {@code null} would
+   * trigger the default behavior.
+   * @throws JedisException
+   * @deprecated Use {@link ServerCommands#shutdown(redis.clients.jedis.params.ShutdownParams)}.
+   */
+  @Deprecated
+  void shutdown(SaveMode saveMode) throws JedisException;
 
   /**
    * @see SaveMode
@@ -196,7 +211,7 @@ public interface ServerCommands {
   String replicaofNoOne();
 
   /**
-   * Synchronous replication of Redis as described here: http://antirez.com/news/66.
+   * Syncrhonous replication of Redis as described here: http://antirez.com/news/66.
    * <p>
    * Blocks until all the previous write commands are successfully transferred and acknowledged by
    * at least the specified number of replicas. If the timeout, specified in milliseconds, is
@@ -210,20 +225,6 @@ public interface ServerCommands {
    *         current connection
    */
   long waitReplicas(int replicas, long timeout);
-
-  /**
-   * Blocks the current client until all the previous write commands are acknowledged as having been
-   * fsynced to the AOF of the local Redis and/or at least the specified number of replicas.
-   * <a href="https://redis.io/commands/waitaof/">Redis Documentation</a>
-   * @param numLocal Number of local instances that are required to acknowledge the sync (0 or 1),
-   *                 cannot be non-zero if the local Redis does not have AOF enabled
-   * @param numReplicas Number of replicas that are required to acknowledge the sync
-   * @param timeout Timeout in millis of the operation - if 0 timeout is unlimited. If the timeout is reached,
-   *                the command returns even if the specified number of acknowledgments has not been met.
-   * @return KeyValue where Key is number of local Redises (0 or 1) that have fsynced to AOF all writes
-   * performed in the context of the current connection, and the value is the number of replicas that have acknowledged doing the same.
-   */
-  KeyValue<Long, Long> waitAOF(long numLocal, long numReplicas, long timeout);
 
   String lolwut();
 

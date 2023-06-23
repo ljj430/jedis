@@ -4,6 +4,7 @@ import java.util.List;
 
 import redis.clients.jedis.params.GetExParams;
 import redis.clients.jedis.params.SetParams;
+import redis.clients.jedis.params.StrAlgoLCSParams;
 import redis.clients.jedis.params.LCSParams;
 import redis.clients.jedis.resps.LCSMatchResult;
 
@@ -15,8 +16,9 @@ public interface StringBinaryCommands extends BitBinaryCommands {
 
   byte[] get(byte[] key);
 
-  byte[] setGet(byte[] key, byte[] value);
-
+  /**
+   * WARNING: {@link SetParams#get()} MUST NOT be used with this method.
+   */
   byte[] setGet(byte[] key, byte[] value, SetParams params);
 
   byte[] getDel(byte[] key);
@@ -56,6 +58,13 @@ public interface StringBinaryCommands extends BitBinaryCommands {
   byte[] substr(byte[] key, int start, int end);
 
   long strlen(byte[] key);
+
+  /**
+   * @deprecated STRALGO LCS command will be removed from Redis 7.
+   * {@link StringBinaryCommands#lcs(byte[], byte[], LCSParams) LCS} can be used instead of this method.
+   */
+  @Deprecated
+  LCSMatchResult strAlgoLCSKeys(byte[] keyA, byte[] keyB, StrAlgoLCSParams params);
 
   /**
    * Calculate the longest common subsequence of keyA and keyB.

@@ -1,19 +1,19 @@
 package redis.clients.jedis.params;
 
-import java.util.ArrayList;
-
-import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
 import redis.clients.jedis.args.ClientType;
-import redis.clients.jedis.util.KeyValue;
 
-public class ClientKillParams implements IParams {
+public class ClientKillParams extends Params {
+
+  private static final String ID = "ID";
+  private static final String TYPE = "TYPE";
+  private static final String ADDR = "ADDR";
+  private static final String SKIPME = "SKIPME";
+  private static final String USER = "USER";
+  private static final String LADDR = "LADDR";
 
   public static enum SkipMe {
     YES, NO;
   }
-
-  private final ArrayList<KeyValue<Keyword, Object>> params = new ArrayList<>();
 
   public ClientKillParams() {
   }
@@ -22,53 +22,53 @@ public class ClientKillParams implements IParams {
     return new ClientKillParams();
   }
 
-  private ClientKillParams addParam(Keyword key, Object value) {
-    params.add(KeyValue.of(key, value));
+  public ClientKillParams id(String clientId) {
+    addParam(ID, clientId);
     return this;
   }
 
-  public ClientKillParams id(String clientId) {
-    return addParam(Keyword.ID, clientId);
-  }
-
   public ClientKillParams id(byte[] clientId) {
-    return addParam(Keyword.ID, clientId);
+    addParam(ID, clientId);
+    return this;
   }
 
   public ClientKillParams type(ClientType type) {
-    return addParam(Keyword.TYPE, type);
+    addParam(TYPE, type);
+    return this;
   }
 
   public ClientKillParams addr(String ipPort) {
-    return addParam(Keyword.ADDR, ipPort);
+    addParam(ADDR, ipPort);
+    return this;
   }
 
   public ClientKillParams addr(byte[] ipPort) {
-    return addParam(Keyword.ADDR, ipPort);
+    addParam(ADDR, ipPort);
+    return this;
   }
 
   public ClientKillParams addr(String ip, int port) {
-    return addParam(Keyword.ADDR, ip + ':' + port);
+    addParam(ADDR, ip + ':' + port);
+    return this;
   }
 
   public ClientKillParams skipMe(SkipMe skipMe) {
-    return addParam(Keyword.SKIPME, skipMe);
+    addParam(SKIPME, skipMe);
+    return this;
   }
 
   public ClientKillParams user(String username) {
-    return addParam(Keyword.USER, username);
+    addParam(USER, username);
+    return this;
   }
 
   public ClientKillParams laddr(String ipPort) {
-    return addParam(Keyword.LADDR, ipPort);
+    addParam(LADDR, ipPort);
+    return this;
   }
 
   public ClientKillParams laddr(String ip, int port) {
-    return addParam(Keyword.LADDR, ip + ':' + port);
-  }
-
-  @Override
-  public void addParams(CommandArguments args) {
-    params.forEach(kv -> args.add(kv.getKey()).add(kv.getValue()));
+    addParam(LADDR, ip + ':' + port);
+    return this;
   }
 }

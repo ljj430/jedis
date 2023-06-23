@@ -6,6 +6,7 @@ import java.util.Set;
 
 import redis.clients.jedis.args.SortedSetOption;
 import redis.clients.jedis.params.*;
+import redis.clients.jedis.resps.KeyedZSetElement;
 import redis.clients.jedis.resps.ScanResult;
 import redis.clients.jedis.resps.Tuple;
 import redis.clients.jedis.util.KeyValue;
@@ -151,24 +152,6 @@ public interface SortedSetCommands {
    * if there is no such element
    */
   Long zrevrank(String key, String member);
-
-  /**
-   * Returns the rank and the score of member in the sorted set stored at key, with the scores
-   * ordered from low to high.
-   * @param key the key
-   * @param member the member
-   * @return the KeyValue contains rank and score.
-   */
-  KeyValue<Long, Double> zrankWithScore(String key, String member);
-
-  /**
-   * Returns the rank and the score of member in the sorted set stored at key, with the scores
-   * ordered from high to low.
-   * @param key the key
-   * @param member the member
-   * @return the KeyValue contains rank and score.
-   */
-  KeyValue<Long, Double> zrevrankWithScore(String key, String member);
 
   /**
    * Returns the specified range of elements in the sorted set stored at key.
@@ -667,7 +650,7 @@ public interface SortedSetCommands {
    *               be used to block indefinitely.
    * @param keys
    */
-  KeyValue<String, Tuple> bzpopmax(double timeout, String... keys);
+  KeyedZSetElement bzpopmax(double timeout, String... keys);
 
   /**
    * The blocking version of {@link SortedSetCommands#zpopmin(String) ZPOPMIN}
@@ -675,7 +658,7 @@ public interface SortedSetCommands {
    *               be used to block indefinitely.
    * @param keys
    */
-  KeyValue<String, Tuple> bzpopmin(double timeout, String... keys);
+  KeyedZSetElement bzpopmin(double timeout, String... keys);
 
   /**
    * Compute the difference between all the sets in the given keys.
@@ -685,32 +668,22 @@ public interface SortedSetCommands {
    * @param keys group of sets
    * @return The result of the difference
    */
-  List<String> zdiff(String... keys);
+  Set<String> zdiff(String... keys);
 
   /**
    * Compute the difference between all the sets in the given keys. Return the result with scores.
    * @param keys group of sets
    * @return The result of the difference with their scores
    */
-  List<Tuple> zdiffWithScores(String... keys);
+  Set<Tuple> zdiffWithScores(String... keys);
 
   /**
    * Compute the difference between all the sets in the given keys. Store the result in dstkey.
    * @param dstkey
    * @param keys group of sets
    * @return The number of elements in the resulting sorted set at dstkey.
-   * @deprecated Use {@link #zdiffstore(java.lang.String, java.lang.String...)}.
    */
-  @Deprecated
   long zdiffStore(String dstkey, String... keys);
-
-  /**
-   * Compute the difference between all the sets in the given keys. Store the result in dstkey.
-   * @param dstkey
-   * @param keys group of sets
-   * @return The number of elements in the resulting sorted set at dstkey.
-   */
-  long zdiffstore(String dstkey, String... keys);
 
   /**
    * Compute the intersection between all the sets in the given keys.
@@ -721,7 +694,7 @@ public interface SortedSetCommands {
    * @param keys group of sets
    * @return The result of the intersection
    */
-  List<String> zinter(ZParams params, String... keys);
+  Set<String> zinter(ZParams params, String... keys);
 
   /**
    * Compute the intersection between all the sets in the given keys. Return the result with scores.
@@ -729,7 +702,7 @@ public interface SortedSetCommands {
    * @param keys group of sets
    * @return The result of the intersection with their scores
    */
-  List<Tuple> zinterWithScores(ZParams params, String... keys);
+  Set<Tuple> zinterWithScores(ZParams params, String... keys);
 
   /**
    * Compute the intersection between all the sets in the given keys. Store the result in dstkey.
@@ -783,7 +756,7 @@ public interface SortedSetCommands {
    * @param keys group of sets
    * @return The result of the union
    */
-  List<String> zunion(ZParams params, String... keys);
+  Set<String> zunion(ZParams params, String... keys);
 
   /**
    * Compute the union between all the sets in the given keys. Return the result with scores.
@@ -791,7 +764,7 @@ public interface SortedSetCommands {
    * @param keys group of sets
    * @return The result of the union with their scores
    */
-  List<Tuple> zunionWithScores(ZParams params, String... keys);
+  Set<Tuple> zunionWithScores(ZParams params, String... keys);
 
   /**
    * Compute the union between all the sets in the given keys. Store the result in dstkey.
@@ -814,7 +787,7 @@ public interface SortedSetCommands {
 
   KeyValue<String, List<Tuple>> zmpop(SortedSetOption option, int count, String... keys);
 
-  KeyValue<String, List<Tuple>> bzmpop(double timeout, SortedSetOption option, String... keys);
+  KeyValue<String, List<Tuple>> bzmpop(long timeout, SortedSetOption option, String... keys);
 
-  KeyValue<String, List<Tuple>> bzmpop(double timeout, SortedSetOption option, int count, String... keys);
+  KeyValue<String, List<Tuple>> bzmpop(long timeout, SortedSetOption option, int count, String... keys);
 }

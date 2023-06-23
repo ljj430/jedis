@@ -16,8 +16,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.Matcher;
 import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import redis.clients.jedis.exceptions.JedisDataException;
@@ -468,19 +469,6 @@ public class PipeliningTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void waitAof() {
-    Pipeline p = jedis.pipelined();
-    p.set("wait", "aof");
-    p.waitAOF(1L, 0L, 0L);
-    p.sync();
-
-    try (Jedis j = new Jedis(HostAndPorts.getRedisServers().get(4))) {
-      j.auth("foobared");
-      assertEquals("aof", j.get("wait"));
-    }
-  }
-
-  @Test
   public void setGet() {
     Pipeline p = jedis.pipelined();
     Response<String> _ok = p.set("hello", "world");
@@ -581,8 +569,8 @@ public class PipeliningTest extends JedisCommandsTestBase {
     p.sync();
 
     List<?> results = (List<?>) result.get();
-    MatcherAssert.assertThat((List<String>) results.get(0), Matchers.hasItem("key1"));
-    MatcherAssert.assertThat((List<Long>) results.get(1), Matchers.hasItem(2L));
+    MatcherAssert.assertThat((List<String>) results.get(0), listWithItem("key1"));
+    MatcherAssert.assertThat((List<Long>) results.get(1), listWithItem(2L));
   }
 
   @Test
@@ -595,8 +583,8 @@ public class PipeliningTest extends JedisCommandsTestBase {
     p.sync();
 
     List<?> results = (List<?>) result.get();
-    MatcherAssert.assertThat((List<byte[]>) results.get(0), Matchers.hasItem(bKey));
-    MatcherAssert.assertThat((List<Long>) results.get(1), Matchers.hasItem(2L));
+    MatcherAssert.assertThat((List<byte[]>) results.get(0), listWithItem(bKey));
+    MatcherAssert.assertThat((List<Long>) results.get(1), listWithItem(2L));
   }
 
   @Test
@@ -867,4 +855,8 @@ public class PipeliningTest extends JedisCommandsTestBase {
 //    assertTrue(firstKey.equals(value1) || firstKey.equals(value2));
 //    assertTrue(secondKey.equals(value1) || secondKey.equals(value2));
 //  }
+
+  private <T> Matcher<Iterable<? super T>> listWithItem(T expected) {
+    return CoreMatchers.<T> hasItem(CoreMatchers.equalTo(expected));
+  }
 }

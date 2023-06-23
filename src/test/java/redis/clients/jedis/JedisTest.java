@@ -60,16 +60,12 @@ public class JedisTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void connectWithEmptyConfigInterface() {
+  public void connectWithConfigInterface() {
     try (Jedis jedis = new Jedis(hnp, new JedisClientConfig() {
     })) {
       jedis.auth("foobared");
       assertEquals("PONG", jedis.ping());
     }
-  }
-
-  @Test
-  public void connectWithConfigInterface() {
     try (Jedis jedis = new Jedis(hnp, new JedisClientConfig() {
       @Override
       public String getPassword() {
@@ -81,53 +77,30 @@ public class JedisTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void connectOnResp3Protocol() {
-    try (Jedis jedis = new Jedis(hnp, DefaultJedisClientConfig.builder()
-        .protocol(RedisProtocol.RESP3).password("foobared").build())) {
-      assertEquals("PONG", jedis.ping());
-      assertEquals(RedisProtocol.RESP3, jedis.getConnection().getRedisProtocol());
-    }
-  }
-
-  @Test
-  public void connectOnResp3ProtocolShortcut() {
-    try (Jedis jedis = new Jedis(hnp, DefaultJedisClientConfig.builder().resp3()
-        .password("foobared").build())) {
-      assertEquals("PONG", jedis.ping());
-      assertEquals(RedisProtocol.RESP3, jedis.getConnection().getRedisProtocol());
-    }
-  }
-
-  @Test
   public void timeoutConnection() throws Exception {
-    final String TIMEOUT_STR = "timeout";
-
     Jedis jedis = new Jedis("localhost", 6379, 15000);
     jedis.auth("foobared");
-    // read current config
-    final String timeout = jedis.configGet(TIMEOUT_STR).get(TIMEOUT_STR);
+    String timeout = jedis.configGet("timeout").get(1);
+    jedis.configSet("timeout", "1");
+    Thread.sleep(2000);
     try {
-      jedis.configSet("timeout", "1");
-      Thread.sleep(5000);
-      try {
-        jedis.hmget("foobar", "foo");
-        fail("Operation should throw JedisConnectionException");
-      } catch (JedisConnectionException jce) {
-        // expected
-      }
-      jedis.close();
-    } finally {
-      // reset config
-      jedis = new Jedis("localhost", 6379);
-      jedis.auth("foobared");
-      jedis.configSet(TIMEOUT_STR, timeout);
-      jedis.close();
+      jedis.hmget("foobar", "foo");
+      fail("Operation should throw JedisConnectionException");
+    } catch (JedisConnectionException jce) {
+      // expected
     }
+    jedis.close();
+
+    // reset config
+    jedis = new Jedis("localhost", 6379);
+    jedis.auth("foobared");
+    jedis.configSet("timeout", timeout);
+    jedis.close();
   }
 
   @Test
   public void infiniteTimeout() throws Exception {
-    try (Jedis timeoutJedis = new Jedis("localhost", 6379, 200, 200, 200)) {
+    try (Jedis timeoutJedis = new Jedis("localhost", 6379, 350, 350, 350)) {
       timeoutJedis.auth("foobared");
       try {
         timeoutJedis.blpop(0, "foo");
@@ -160,7 +133,7 @@ public class JedisTest extends JedisCommandsTestBase {
 //  }
 
   @Test
-  public void connectWithUrl() {
+  public void startWithUrl() {
     try (Jedis j = new Jedis("localhost", 6380)) {
       j.auth("foobared");
       j.select(2);
@@ -174,7 +147,7 @@ public class JedisTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void connectWithUri() throws URISyntaxException {
+  public void startWithUri() throws URISyntaxException {
     try (Jedis j = new Jedis("localhost", 6380)) {
       j.auth("foobared");
       j.select(2);
@@ -182,34 +155,6 @@ public class JedisTest extends JedisCommandsTestBase {
     }
 
     try (Jedis jedis = new Jedis(new URI("redis://:foobared@localhost:6380/2"))) {
-      assertEquals("PONG", jedis.ping());
-      assertEquals("bar", jedis.get("foo"));
-    }
-  }
-
-  @Test
-  public void connectWithUrlOnResp3() {
-    try (Jedis j = new Jedis("localhost", 6380)) {
-      j.auth("foobared");
-      j.select(2);
-      j.set("foo", "bar");
-    }
-
-    try (Jedis j2 = new Jedis("redis://:foobared@localhost:6380/2?protocol=3")) {
-      assertEquals("PONG", j2.ping());
-      assertEquals("bar", j2.get("foo"));
-    }
-  }
-
-  @Test
-  public void connectWithUriOnResp3() throws URISyntaxException {
-    try (Jedis j = new Jedis("localhost", 6380)) {
-      j.auth("foobared");
-      j.select(2);
-      j.set("foo", "bar");
-    }
-
-    try (Jedis jedis = new Jedis(new URI("redis://:foobared@localhost:6380/2?protocol=3"))) {
       assertEquals("PONG", jedis.ping());
       assertEquals("bar", jedis.get("foo"));
     }
@@ -284,7 +229,7 @@ public class JedisTest extends JedisCommandsTestBase {
 
   @Test
   public void checkDisconnectOnQuit() {
-    jedis.disconnect();
+    jedis.quit();
     assertFalse(jedis.isConnected());
   }
 

@@ -1,7 +1,12 @@
 package redis.clients.jedis.params;
 
+import static redis.clients.jedis.Protocol.Keyword.ABSTTL;
+import static redis.clients.jedis.Protocol.Keyword.FREQ;
+import static redis.clients.jedis.Protocol.Keyword.IDLETIME;
+import static redis.clients.jedis.Protocol.Keyword.REPLACE;
+
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
+import redis.clients.jedis.Protocol;
 
 public class RestoreParams implements IParams {
 
@@ -40,19 +45,21 @@ public class RestoreParams implements IParams {
   @Override
   public void addParams(CommandArguments args) {
     if (replace) {
-      args.add(Keyword.REPLACE);
+      args.add(REPLACE.getRaw());
     }
 
     if (absTtl) {
-      args.add(Keyword.ABSTTL);
+      args.add(ABSTTL.getRaw());
     }
 
     if (idleTime != null) {
-      args.add(Keyword.IDLETIME).add(idleTime);
+      args.add(IDLETIME.getRaw());
+      args.add(Protocol.toByteArray(idleTime));
     }
 
     if (frequency != null) {
-      args.add(Keyword.FREQ).add(frequency);
+      args.add(FREQ.getRaw());
+      args.add(Protocol.toByteArray(frequency));
     }
   }
 }

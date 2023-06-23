@@ -65,7 +65,7 @@ public class ReliableTransaction extends TransactionBase {
   }
 
   @Override
-  protected final void processPipelinedResponses(int pipelineLength) {
+  protected final void processPipelinedResponses() {
     // do nothing
   }
 

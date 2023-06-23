@@ -21,6 +21,7 @@ import redis.clients.jedis.args.ListPosition;
 import redis.clients.jedis.args.ListDirection;
 import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.jedis.params.LPosParams;
+import redis.clients.jedis.resps.KeyedListElement;
 import redis.clients.jedis.util.KeyValue;
 
 public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase {
@@ -443,7 +444,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
   @Test
   public void blpopDouble() throws InterruptedException {
-    KeyValue<String, String> result = jedis.blpop(0.1, "foo");
+    KeyedListElement result = jedis.blpop(0.1, "foo");
     assertNull(result);
 
     jedis.lpush("foo", "bar");
@@ -451,7 +452,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
     assertNotNull(result);
     assertEquals("foo", result.getKey());
-    assertEquals("bar", result.getValue());
+    assertEquals("bar", result.getElement());
 
     // Multi keys
     result = jedis.blpop(0.18, "foo", "foo1");
@@ -463,15 +464,16 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
     assertNotNull(result);
     assertEquals("foo1", result.getKey());
-    assertEquals("bar1", result.getValue());
+    assertEquals("bar1", result.getElement());
 
     // Binary
     jedis.lpush(bfoo, bbar);
-    KeyValue<byte[], byte[]> bresult = jedis.blpop(3.12, bfoo);
+    List<byte[]> bresult = jedis.blpop(3.12, bfoo);
 
     assertNotNull(bresult);
-    assertArrayEquals(bfoo, bresult.getKey());
-    assertArrayEquals(bbar, bresult.getValue());
+    assertEquals(2, bresult.size());
+    assertArrayEquals(bfoo, bresult.get(0));
+    assertArrayEquals(bbar, bresult.get(1));
 
     // Binary Multi keys
     bresult = jedis.blpop(0.11, bfoo, bfoo1);
@@ -482,8 +484,9 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
     bresult = jedis.blpop(1d, bfoo, bfoo1);
 
     assertNotNull(bresult);
-    assertArrayEquals(bfoo, bresult.getKey());
-    assertArrayEquals(bbar, bresult.getValue());
+    assertEquals(2, bresult.size());
+    assertArrayEquals(bfoo, bresult.get(0));
+    assertArrayEquals(bbar, bresult.get(1));
   }
 
   @Test
@@ -491,7 +494,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
     long startMillis, totalMillis;
 
     startMillis = System.currentTimeMillis();
-    KeyValue<String, String> result = jedis.blpop(0.04, "foo");
+    KeyedListElement result = jedis.blpop(0.04, "foo");
     totalMillis = System.currentTimeMillis() - startMillis;
     assertTrue("TotalMillis=" + totalMillis, totalMillis < 200);
     assertNull(result);
@@ -511,7 +514,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
     assertNotNull(result);
     assertEquals("foo", result.getKey());
-    assertEquals("bar", result.getValue());
+    assertEquals("bar", result.getElement());
   }
 
   @Test
@@ -563,7 +566,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
   @Test
   public void brpopDouble() throws InterruptedException {
-    KeyValue<String, String> result = jedis.brpop(0.1, "foo");
+    KeyedListElement result = jedis.brpop(0.1, "foo");
     assertNull(result);
 
     jedis.lpush("foo", "bar");
@@ -571,7 +574,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
     assertNotNull(result);
     assertEquals("foo", result.getKey());
-    assertEquals("bar", result.getValue());
+    assertEquals("bar", result.getElement());
 
     // Multi keys
     result = jedis.brpop(0.18, "foo", "foo1");
@@ -583,15 +586,16 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
     assertNotNull(result);
     assertEquals("foo1", result.getKey());
-    assertEquals("bar1", result.getValue());
+    assertEquals("bar1", result.getElement());
 
     // Binary
     jedis.lpush(bfoo, bbar);
-    KeyValue<byte[], byte[]> bresult = jedis.brpop(3.12, bfoo);
+    List<byte[]> bresult = jedis.brpop(3.12, bfoo);
 
     assertNotNull(bresult);
-    assertArrayEquals(bfoo, bresult.getKey());
-    assertArrayEquals(bbar, bresult.getValue());
+    assertEquals(2, bresult.size());
+    assertArrayEquals(bfoo, bresult.get(0));
+    assertArrayEquals(bbar, bresult.get(1));
 
     // Binary Multi keys
     bresult = jedis.brpop(0.11, bfoo, bfoo1);
@@ -602,8 +606,9 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
     bresult = jedis.brpop(1d, bfoo, bfoo1);
 
     assertNotNull(bresult);
-    assertArrayEquals(bfoo, bresult.getKey());
-    assertArrayEquals(bbar, bresult.getValue());
+    assertEquals(2, bresult.size());
+    assertArrayEquals(bfoo, bresult.get(0));
+    assertArrayEquals(bbar, bresult.get(1));
   }
 
   @Test
@@ -611,7 +616,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
     long startMillis, totalMillis;
 
     startMillis = System.currentTimeMillis();
-    KeyValue<String, String> result = jedis.brpop(0.04, "foo");
+    KeyedListElement result = jedis.brpop(0.04, "foo");
     totalMillis = System.currentTimeMillis() - startMillis;
     assertTrue("TotalMillis=" + totalMillis, totalMillis < 200);
     assertNull(result);
@@ -631,7 +636,7 @@ public abstract class ListCommandsTestBase extends UnifiedJedisCommandsTestBase 
 
     assertNotNull(result);
     assertEquals("foo", result.getKey());
-    assertEquals("bar", result.getValue());
+    assertEquals("bar", result.getElement());
   }
 
   @Test

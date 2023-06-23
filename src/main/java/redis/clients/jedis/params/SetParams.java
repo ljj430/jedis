@@ -1,13 +1,19 @@
 package redis.clients.jedis.params;
 
 import redis.clients.jedis.CommandArguments;
+import redis.clients.jedis.Protocol;
 import redis.clients.jedis.Protocol.Keyword;
 
-public class SetParams implements IParams {
+public class SetParams extends Params implements IParams {
 
-  private Keyword existance;
-  private Keyword expiration;
-  private Long expirationValue;
+  private static final String XX = "xx";
+  private static final String NX = "nx";
+  private static final String PX = "px";
+  private static final String EX = "ex";
+  private static final String EXAT = "exat";
+  private static final String PXAT = "pxat";
+  private static final String KEEPTTL = "keepttl";
+  private static final String GET = "get";
 
   public SetParams() {
   }
@@ -17,11 +23,31 @@ public class SetParams implements IParams {
   }
 
   /**
+   * Set the specified expire time, in seconds.
+   * @param secondsToExpire
+   * @return SetParams
+   */
+  public SetParams ex(long secondsToExpire) {
+    addParam(EX, secondsToExpire);
+    return this;
+  }
+
+  /**
+   * Set the specified expire time, in milliseconds.
+   * @param millisecondsToExpire
+   * @return SetParams
+   */
+  public SetParams px(long millisecondsToExpire) {
+    addParam(PX, millisecondsToExpire);
+    return this;
+  }
+
+  /**
    * Only set the key if it does not already exist.
    * @return SetParams
    */
   public SetParams nx() {
-    this.existance = Keyword.NX;
+    addParam(NX);
     return this;
   }
 
@@ -30,80 +56,82 @@ public class SetParams implements IParams {
    * @return SetParams
    */
   public SetParams xx() {
-    this.existance = Keyword.XX;
+    addParam(XX);
     return this;
-  }
-
-  private SetParams expiration(Keyword type, Long value) {
-    this.expiration = type;
-    this.expirationValue = value;
-    return this;
-  }
-
-  /**
-   * Set the specified expire time, in seconds.
-   * @param remainingSeconds
-   * @return SetParams
-   */
-  public SetParams ex(long remainingSeconds) {
-    return expiration(Keyword.EX, remainingSeconds);
-  }
-
-  /**
-   * Set the specified expire time, in milliseconds.
-   * @param remainingMilliseconds
-   * @return SetParams
-   */
-  public SetParams px(long remainingMilliseconds) {
-    return expiration(Keyword.PX, remainingMilliseconds);
   }
 
   /**
    * Set the specified Unix time at which the key will expire, in seconds.
-   * @param timestampSeconds
+   * @param seconds
    * @return SetParams
    */
-  public SetParams exAt(long timestampSeconds) {
-    return expiration(Keyword.EXAT, timestampSeconds);
+  public SetParams exAt(long seconds) {
+    addParam(EXAT, seconds);
+    return this;
   }
 
   /**
    * Set the specified Unix time at which the key will expire, in milliseconds.
-   * @param timestampMilliseconds
+   * @param milliseconds
    * @return SetParams
    */
-  public SetParams pxAt(long timestampMilliseconds) {
-    return expiration(Keyword.PXAT, timestampMilliseconds);
+  public SetParams pxAt(long milliseconds) {
+    addParam(PXAT, milliseconds);
+    return this;
   }
 
   /**
    * Retain the time to live associated with the key.
    * @return SetParams
    */
-  // TODO: deprecate?
   public SetParams keepttl() {
-    return keepTtl();
+    addParam(KEEPTTL);
+    return this;
   }
 
   /**
-   * Retain the time to live associated with the key.
+   * Return the old value stored at key, or nil when key did not exist.
    * @return SetParams
+   * @deprecated Use {@code setGet} method (without setting {@link SetParams#get()}.
    */
-  public SetParams keepTtl() {
-    return expiration(Keyword.KEEPTTL, null);
+  @Deprecated
+  public SetParams get() {
+    addParam(GET);
+    return this;
   }
 
   @Override
   public void addParams(CommandArguments args) {
-    if (existance != null) {
-      args.add(existance);
+    if (contains(NX)) {
+      args.add(Keyword.NX);
+    }
+    if (contains(XX)) {
+      args.add(Keyword.XX);
     }
 
-    if (expiration != null) {
-      args.add(expiration);
-      if (expirationValue != null) {
-        args.add(expirationValue);
-      }
+    if (contains(EX)) {
+      args.add(Keyword.EX);
+      args.add(Protocol.toByteArray((long) getParam(EX)));
+    }
+    if (contains(PX)) {
+      args.add(Keyword.PX);
+      args.add(Protocol.toByteArray((long) getParam(PX)));
+    }
+    if (contains(EXAT)) {
+      args.add(Keyword.EXAT);
+      args.add(Protocol.toByteArray((long) getParam(EXAT)));
+    }
+    if (contains(PXAT)) {
+      args.add(Keyword.PXAT);
+      args.add(Protocol.toByteArray((long) getParam(PXAT)));
+    }
+    if (contains(KEEPTTL)) {
+      args.add(Keyword.KEEPTTL);
+    }
+
+    if (contains(GET)) {
+      args.add(Keyword.GET);
     }
   }
+
 }

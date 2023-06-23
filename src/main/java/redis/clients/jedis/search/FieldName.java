@@ -3,9 +3,14 @@ package redis.clients.jedis.search;
 import java.util.List;
 import redis.clients.jedis.CommandArguments;
 import redis.clients.jedis.params.IParams;
-import redis.clients.jedis.search.SearchProtocol.SearchKeyword;
+
+import redis.clients.jedis.util.SafeEncoder;
 
 public class FieldName implements IParams {
+
+  private static final String AS_ENCODED = "AS";
+  private static final byte[] AS_BINARY = SafeEncoder.encode(AS_ENCODED);
+  private static final byte[] AS = SafeEncoder.encode("AS");
 
   private final String name;
   private String attribute;
@@ -30,31 +35,47 @@ public class FieldName implements IParams {
     return this;
   }
 
-  public int addCommandArguments(List<Object> args) {
+  public int addCommandEncodedArguments(List<String> args) {
     args.add(name);
     if (attribute == null) {
       return 1;
     }
 
-    args.add(SearchKeyword.AS);
+    args.add(AS_ENCODED);
     args.add(attribute);
     return 3;
   }
 
-  public int addCommandArguments(CommandArguments args) {
-    args.add(name);
+  public int addCommandBinaryArguments(List<byte[]> args) {
+    args.add(SafeEncoder.encode(name));
     if (attribute == null) {
       return 1;
     }
 
-    args.add(SearchKeyword.AS);
-    args.add(attribute);
+    args.add(AS_BINARY);
+    args.add(SafeEncoder.encode(attribute));
+    return 3;
+  }
+
+  public int addCommandArguments(CommandArguments args) {
+    args.add(SafeEncoder.encode(name));
+    if (attribute == null) {
+      return 1;
+    }
+
+    args.add(AS);
+    args.add(SafeEncoder.encode(attribute));
     return 3;
   }
 
   @Override
   public void addParams(CommandArguments args) {
     addCommandArguments(args);
+  }
+
+  @Deprecated // TODO: remove?
+  String getName() {
+    return name;
   }
 
   @Override

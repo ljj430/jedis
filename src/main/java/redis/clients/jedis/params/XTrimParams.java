@@ -1,8 +1,12 @@
 package redis.clients.jedis.params;
 
+import static redis.clients.jedis.Protocol.Keyword.LIMIT;
+import static redis.clients.jedis.Protocol.Keyword.MAXLEN;
+import static redis.clients.jedis.Protocol.Keyword.MINID;
+
 import redis.clients.jedis.CommandArguments;
 import redis.clients.jedis.Protocol;
-import redis.clients.jedis.Protocol.Keyword;
+import redis.clients.jedis.util.SafeEncoder;
 
 public class XTrimParams implements IParams {
 
@@ -49,7 +53,7 @@ public class XTrimParams implements IParams {
   @Override
   public void addParams(CommandArguments args) {
     if (maxLen != null) {
-      args.add(Keyword.MAXLEN);
+      args.add(MAXLEN.getRaw());
 
       if (approximateTrimming) {
         args.add(Protocol.BYTES_TILDE);
@@ -59,7 +63,7 @@ public class XTrimParams implements IParams {
 
       args.add(Protocol.toByteArray(maxLen));
     } else if (minId != null) {
-      args.add(Keyword.MINID);
+      args.add(MINID.getRaw());
 
       if (approximateTrimming) {
         args.add(Protocol.BYTES_TILDE);
@@ -67,11 +71,12 @@ public class XTrimParams implements IParams {
         args.add(Protocol.BYTES_EQUAL);
       }
 
-      args.add(minId);
+      args.add(SafeEncoder.encode(minId));
     }
 
     if (limit != null) {
-      args.add(Keyword.LIMIT).add(limit);
+      args.add(LIMIT.getRaw());
+      args.add(Protocol.toByteArray(limit));
     }
   }
 }

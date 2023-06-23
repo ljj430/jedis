@@ -1,13 +1,12 @@
 package redis.clients.jedis.commands.jedis;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,7 +28,7 @@ public class SlowlogCommandsTest extends JedisCommandsTestBase {
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    slowlogTimeValue = jedis.configGet(SLOWLOG_TIME_PARAM).get(SLOWLOG_TIME_PARAM);
+    slowlogTimeValue = jedis.configGet(SLOWLOG_TIME_PARAM).get(1);
   }
 
   @After
@@ -42,8 +41,6 @@ public class SlowlogCommandsTest extends JedisCommandsTestBase {
   @Test
   public void slowlog() {
     jedis.configSet(SLOWLOG_TIME_PARAM, ZERO_STRING);
-    jedis.slowlogReset();
-
     jedis.set("foo", "bar");
     jedis.set("foo2", "bar2");
 
@@ -51,9 +48,9 @@ public class SlowlogCommandsTest extends JedisCommandsTestBase {
     assertEquals(1, reducedLog.size());
 
     Slowlog log = reducedLog.get(0);
-    assertThat(log.getId(), Matchers.greaterThan(0L));
-    assertThat(log.getTimeStamp(), Matchers.greaterThan(0L));
-    assertThat(log.getExecutionTime(), Matchers.greaterThanOrEqualTo(0L));
+    assertTrue(log.getId() > 0);
+    assertTrue(log.getTimeStamp() > 0);
+    assertTrue(log.getExecutionTime() >= 0);
     assertNotNull(log.getArgs());
 
     List<Object> breducedLog = jedis.slowlogGetBinary(1);
@@ -66,9 +63,8 @@ public class SlowlogCommandsTest extends JedisCommandsTestBase {
     assertNotNull(blog1);
 
 //    assertEquals(7, jedis.slowlogLen());
-    assertThat(jedis.slowlogLen(),
-        Matchers.allOf(Matchers.greaterThanOrEqualTo(6L), Matchers.lessThanOrEqualTo(13L)));
-    assertThat(jedis.slowlogGet().toString(), Matchers.containsString("SLOWLOG"));
+    assertTrue(jedis.slowlogLen() > 5 && jedis.slowlogLen() < 12);
+    assertTrue(jedis.slowlogGet().toString().contains("SLOWLOG"));
   }
 
   @Test
@@ -78,37 +74,36 @@ public class SlowlogCommandsTest extends JedisCommandsTestBase {
     jedis.slowlogReset();
     jedis.configSet(SLOWLOG_TIME_PARAM, ZERO_STRING);
 
-    List<Slowlog> logs = jedis.slowlogGet(); // Get only 'CONFIG SET', or including 'SLOWLOG RESET'
-    //assertEquals(1, logs.size());
-    assertThat(logs.size(), Matchers.allOf(Matchers.greaterThanOrEqualTo(1), Matchers.lessThanOrEqualTo(2)));
+    List<Slowlog> logs = jedis.slowlogGet(); // Get only 'CONFIG SET'
+    assertEquals(1, logs.size());
     Slowlog log = logs.get(0);
-    assertThat(log.getId(), Matchers.greaterThan(0L));
-    assertThat(log.getTimeStamp(), Matchers.greaterThan(0L));
-    assertThat(log.getExecutionTime(), Matchers.greaterThan(0L));
+    assertTrue(log.getId() > 0);
+    assertTrue(log.getTimeStamp() > 0);
+    assertTrue(log.getExecutionTime() > 0);
     assertEquals(4, log.getArgs().size());
     assertEquals(SafeEncoder.encode(Protocol.Command.CONFIG.getRaw()), log.getArgs().get(0));
     assertEquals(SafeEncoder.encode(Protocol.Keyword.SET.getRaw()), log.getArgs().get(1));
     assertEquals(SLOWLOG_TIME_PARAM, log.getArgs().get(2));
     assertEquals(ZERO_STRING, log.getArgs().get(3));
-    assertThat(log.getClientIpPort().getHost(), Matchers.in(LOCAL_IPS));
-    assertThat(log.getClientIpPort().getPort(), Matchers.greaterThan(0));
+//    assertEquals("127.0.0.1", log.getClientIpPort().getHost());
+    assertTrue(LOCAL_IPS.contains(log.getClientIpPort().getHost()));
+    assertTrue(log.getClientIpPort().getPort() > 0);
     assertEquals(clientName, log.getClientName());
   }
 
   @Test
-  public void slowlogBinaryObjectDetails() {
+  public void slowlogBinaryDetails() {
     final byte[] clientName = SafeEncoder.encode("slowlog-binary-client");
     jedis.clientSetname(clientName);
     jedis.slowlogReset();
     jedis.configSet(SafeEncoder.encode(SLOWLOG_TIME_PARAM), SafeEncoder.encode(ZERO_STRING));
 
-    List<Object> logs = jedis.slowlogGetBinary(); // Get only 'CONFIG SET', or including 'SLOWLOG RESET'
-    //assertEquals(1, logs.size());
-    assertThat(logs.size(), Matchers.allOf(Matchers.greaterThanOrEqualTo(1), Matchers.lessThanOrEqualTo(2)));
+    List<Object> logs = jedis.slowlogGetBinary(); // Get only 'CONFIG SET'
+    assertEquals(1, logs.size());
     List<Object> log = (List<Object>) logs.get(0);
-    assertThat((Long) log.get(0), Matchers.greaterThan(0L));
-    assertThat((Long) log.get(1), Matchers.greaterThan(0L));
-    assertThat((Long) log.get(2), Matchers.greaterThan(0L));
+    assertTrue((Long) log.get(0) > 0);
+    assertTrue((Long) log.get(1) > 0);
+    assertTrue((Long) log.get(2) > 0);
     List<Object> args = (List<Object>) log.get(3);
     assertEquals(4, args.size());
     assertArrayEquals(Protocol.Command.CONFIG.getRaw(), (byte[]) args.get(0));
@@ -116,7 +111,7 @@ public class SlowlogCommandsTest extends JedisCommandsTestBase {
     assertArrayEquals(SafeEncoder.encode(SLOWLOG_TIME_PARAM), (byte[]) args.get(2));
     assertArrayEquals(Protocol.toByteArray(0), (byte[]) args.get(3));
 //    assertTrue(SafeEncoder.encode((byte[]) log.get(4)).startsWith("127.0.0.1:"));
-    assertThat(((byte[]) log.get(4)).length, Matchers.greaterThanOrEqualTo(10)); // 'IP:PORT'
+    assertTrue(((byte[]) log.get(4)).length > 0);
     assertArrayEquals(clientName, (byte[]) log.get(5));
   }
 }

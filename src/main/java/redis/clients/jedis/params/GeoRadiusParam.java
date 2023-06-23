@@ -1,7 +1,12 @@
 package redis.clients.jedis.params;
 
+import static redis.clients.jedis.Protocol.Keyword.COUNT;
+import static redis.clients.jedis.Protocol.Keyword.WITHCOORD;
+import static redis.clients.jedis.Protocol.Keyword.WITHDIST;
+import static redis.clients.jedis.Protocol.Keyword.WITHHASH;
+import static redis.clients.jedis.Protocol.Keyword.ANY;
+
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
 import redis.clients.jedis.args.SortingOrder;
 
 public class GeoRadiusParam implements IParams {
@@ -50,21 +55,20 @@ public class GeoRadiusParam implements IParams {
   }
 
   public GeoRadiusParam count(int count) {
-    this.count = count;
+    if (count > 0) {
+      this.count = count;
+    }
     return this;
   }
 
   public GeoRadiusParam count(int count, boolean any) {
-    this.count = count;
-    this.any = any;
-    return this;
-  }
+    if (count > 0) {
+      this.count = count;
 
-  public GeoRadiusParam any() {
-    if (this.count == null) {
-      throw new IllegalArgumentException("COUNT must be set before ANY to be set");
+      if (any) {
+        this.any = true;
+      }
     }
-    this.any = true;
     return this;
   }
 
@@ -72,19 +76,19 @@ public class GeoRadiusParam implements IParams {
   public void addParams(CommandArguments args) {
 
     if (withCoord) {
-      args.add(Keyword.WITHCOORD);
+      args.add(WITHCOORD);
     }
     if (withDist) {
-      args.add(Keyword.WITHDIST);
+      args.add(WITHDIST);
     }
     if (withHash) {
-      args.add(Keyword.WITHHASH);
+      args.add(WITHHASH);
     }
 
     if (count != null) {
-      args.add(Keyword.COUNT).add(count);
+      args.add(COUNT).add(count);
       if (any) {
-        args.add(Keyword.ANY);
+        args.add(ANY);
       }
     }
 

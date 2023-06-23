@@ -1,13 +1,14 @@
 package redis.clients.jedis.params;
 
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
 
-public class ZAddParams implements IParams {
+public class ZAddParams extends Params implements IParams {
 
-  private Keyword existance;
-  private Keyword comparison;
-  private boolean change;
+  private static final String XX = "xx";
+  private static final String NX = "nx";
+  private static final String CH = "ch";
+  private static final String LT = "lt";
+  private static final String GT = "gt";
 
   public ZAddParams() {
   }
@@ -21,7 +22,7 @@ public class ZAddParams implements IParams {
    * @return ZAddParams
    */
   public ZAddParams nx() {
-    this.existance = Keyword.NX;
+    addParam(NX);
     return this;
   }
 
@@ -30,25 +31,7 @@ public class ZAddParams implements IParams {
    * @return ZAddParams
    */
   public ZAddParams xx() {
-    this.existance = Keyword.XX;
-    return this;
-  }
-
-  /**
-   * Only update existing elements if the new score is greater than the current score.
-   * @return ZAddParams
-   */
-  public ZAddParams gt() {
-    this.comparison = Keyword.GT;
-    return this;
-  }
-
-  /**
-   * Only update existing elements if the new score is less than the current score.
-   * @return ZAddParams
-   */
-  public ZAddParams lt() {
-    this.comparison = Keyword.LT;
+    addParam(XX);
     return this;
   }
 
@@ -58,20 +41,44 @@ public class ZAddParams implements IParams {
    * @return ZAddParams
    */
   public ZAddParams ch() {
-    this.change = true;
+    addParam(CH);
+    return this;
+  }
+
+  /**
+   * Only update existing elements if the new score is greater than the current score.
+   * @return ZAddParams
+   */
+  public ZAddParams gt() {
+    addParam(GT);
+    return this;
+  }
+
+  /**
+   * Only update existing elements if the new score is less than the current score.
+   * @return ZAddParams
+   */
+  public ZAddParams lt() {
+    addParam(LT);
     return this;
   }
 
   @Override
   public void addParams(CommandArguments args) {
-    if (existance != null) {
-      args.add(existance);
+    if (contains(NX)) {
+      args.add(NX);
     }
-    if (comparison != null) {
-      args.add(comparison);
+    if (contains(XX)) {
+      args.add(XX);
     }
-    if (change) {
-      args.add(Keyword.CH);
+    if (contains(CH)) {
+      args.add(CH);
+    }
+    if (contains(LT)) {
+      args.add(LT);
+    }
+    if (contains(GT)) {
+      args.add(GT);
     }
   }
 

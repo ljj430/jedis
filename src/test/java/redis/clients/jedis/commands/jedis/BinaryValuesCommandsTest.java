@@ -110,7 +110,6 @@ public class BinaryValuesCommandsTest extends JedisCommandsTestBase {
   public void setAndKeepttl() {
     assertEquals("OK", jedis.set(bfoo, binaryValue, setParams().nx().ex(expireSeconds)));
     assertEquals("OK", jedis.set(bfoo, binaryValue, setParams().keepttl()));
-    assertEquals("OK", jedis.set(bfoo, binaryValue, setParams().keepTtl()));
     long ttl = jedis.ttl(bfoo);
     assertTrue(0 < ttl && ttl <= expireSeconds);
     jedis.set(bfoo, binaryValue);
@@ -329,12 +328,12 @@ public class BinaryValuesCommandsTest extends JedisCommandsTestBase {
     assertEquals("OK", jedis.set(bfoo, bbar));
 
     // GET old value
-    assertArrayEquals(bbar, jedis.setGet(bfoo, binaryValue));
+    assertArrayEquals(bbar, jedis.setGet(bfoo, binaryValue, setParams()));
 
     assertArrayEquals(binaryValue, jedis.get(bfoo));
 
     // GET null value
-    assertNull(jedis.setGet(bbar, bfoo));
+    assertNull(jedis.setGet(bbar, bfoo, setParams()));
   }
 
   @Test

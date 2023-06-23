@@ -1,7 +1,6 @@
 package redis.clients.jedis.params;
 
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
 
 /**
  * Parameters for ZINCRBY commands. In fact, Redis doesn't have parameters for ZINCRBY. Instead
@@ -13,9 +12,11 @@ import redis.clients.jedis.Protocol.Keyword;
  * <p>
  * Works with Redis 3.0.2 and onwards.
  */
-public class ZIncrByParams implements IParams {
+public class ZIncrByParams extends Params implements IParams {
 
-  private Keyword existance;
+  private static final String XX = "xx";
+  private static final String NX = "nx";
+  private static final String INCR = "incr";
 
   public ZIncrByParams() {
   }
@@ -29,7 +30,7 @@ public class ZIncrByParams implements IParams {
    * @return ZIncrByParams
    */
   public ZIncrByParams nx() {
-    this.existance = Keyword.NX;
+    addParam(NX);
     return this;
   }
 
@@ -38,17 +39,20 @@ public class ZIncrByParams implements IParams {
    * @return ZIncrByParams
    */
   public ZIncrByParams xx() {
-    this.existance = Keyword.XX;
+    addParam(XX);
     return this;
   }
 
   @Override
   public void addParams(CommandArguments args) {
-    if (existance != null) {
-      args.add(existance);
+    if (contains(NX)) {
+      args.add(NX);
+    }
+    if (contains(XX)) {
+      args.add(XX);
     }
 
-    args.add(Keyword.INCR);
+    args.add(INCR);
   }
 
 }

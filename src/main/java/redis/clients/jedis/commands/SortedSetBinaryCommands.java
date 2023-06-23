@@ -32,10 +32,6 @@ public interface SortedSetBinaryCommands {
 
   Long zrevrank(byte[] key, byte[] member);
 
-  KeyValue<Long, Double> zrankWithScore(byte[] key, byte[] member);
-
-  KeyValue<Long, Double> zrevrankWithScore(byte[] key, byte[] member);
-
   List<byte[]> zrange(byte[] key, long start, long stop);
 
   List<byte[]> zrevrange(byte[] key, long start, long stop);
@@ -130,25 +126,19 @@ public interface SortedSetBinaryCommands {
 
   ScanResult<Tuple> zscan(byte[] key, byte[] cursor, ScanParams params);
 
-  KeyValue<byte[], Tuple> bzpopmax(double timeout, byte[]... keys);
+  List<byte[]> bzpopmax(double timeout, byte[]... keys);
 
-  KeyValue<byte[], Tuple> bzpopmin(double timeout, byte[]... keys);
+  List<byte[]> bzpopmin(double timeout, byte[]... keys);
 
-  List<byte[]> zdiff(byte[]... keys);
+  Set<byte[]> zdiff(byte[]... keys);
 
-  List<Tuple> zdiffWithScores(byte[]... keys);
+  Set<Tuple> zdiffWithScores(byte[]... keys);
 
-  /**
-   * @deprecated Use {@link #zdiffstore(byte..., byte[]...)}.
-   */
-  @Deprecated
   long zdiffStore(byte[] dstkey, byte[]... keys);
 
-  long zdiffstore(byte[] dstkey, byte[]... keys);
+  Set<byte[]> zinter(ZParams params, byte[]... keys);
 
-  List<byte[]> zinter(ZParams params, byte[]... keys);
-
-  List<Tuple> zinterWithScores(ZParams params, byte[]... keys);
+  Set<Tuple> zinterWithScores(ZParams params, byte[]... keys);
 
   long zinterstore(byte[] dstkey, byte[]... sets);
 
@@ -180,9 +170,9 @@ public interface SortedSetBinaryCommands {
    */
   long zintercard(long limit, byte[]... keys);
 
-  List<byte[]> zunion(ZParams params, byte[]... keys);
+  Set<byte[]> zunion(ZParams params, byte[]... keys);
 
-  List<Tuple> zunionWithScores(ZParams params, byte[]... keys);
+  Set<Tuple> zunionWithScores(ZParams params, byte[]... keys);
 
   long zunionstore(byte[] dstkey, byte[]... sets);
 
@@ -192,7 +182,7 @@ public interface SortedSetBinaryCommands {
 
   KeyValue<byte[], List<Tuple>> zmpop(SortedSetOption option, int count, byte[]... keys);
 
-  KeyValue<byte[], List<Tuple>> bzmpop(double timeout, SortedSetOption option, byte[]... keys);
+  KeyValue<byte[], List<Tuple>> bzmpop(long timeout, SortedSetOption option, byte[]... keys);
 
-  KeyValue<byte[], List<Tuple>> bzmpop(double timeout, SortedSetOption option, int count, byte[]... keys);
+  KeyValue<byte[], List<Tuple>> bzmpop(long timeout, SortedSetOption option, int count, byte[]... keys);
 }

@@ -1,7 +1,5 @@
 package redis.clients.jedis;
 
-// TODO: 'resps' package
-// TODO: remove
 public class Module {
 
   private final String name;

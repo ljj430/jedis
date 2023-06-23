@@ -1,17 +1,10 @@
 package redis.clients.jedis.modules.timeseries;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static redis.clients.jedis.util.AssertUtil.assertEqualsByProtocol;
+import static org.junit.Assert.*;
 
 import java.util.*;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import redis.clients.jedis.RedisProtocol;
 
 import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.jedis.modules.RedisModuleCommandsTestBase;
@@ -201,7 +194,7 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     assertEquals(expectedOverallMaxValues, values);
 
     // MRANGE
-    assertEquals(Collections.emptyMap(), client.tsMRange(TSMRangeParams.multiRangeParams().filter("l=v")));
+    assertEquals(Collections.emptyList(), client.tsMRange(TSMRangeParams.multiRangeParams().filter("l=v")));
     try {
       client.tsMRange(TSMRangeParams.multiRangeParams(500L, 4600L).aggregation(AggregationType.COUNT, 1));
       fail();
@@ -216,11 +209,11 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     } catch (IllegalArgumentException e) {
     }
 
-    Map<String, TSMRangeElements> ranges = client.tsMRange(TSMRangeParams.multiRangeParams(500L, 4600L)
+    List<TSKeyedElements> ranges = client.tsMRange(TSMRangeParams.multiRangeParams(500L, 4600L)
         .aggregation(AggregationType.COUNT, 1).filter("l1=v1"));
     assertEquals(1, ranges.size());
 
-    TSMRangeElements range = ranges.values().stream().findAny().get();
+    TSKeyedElements range = ranges.get(0);
     assertEquals("seriesAdd", range.getKey());
     assertEquals(Collections.emptyMap(), range.getLabels());
 
@@ -236,12 +229,10 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     labels2.put("l3", "v3");
     labels2.put("l4", "v4");
     assertEquals(1000L, client.tsAdd("seriesAdd2", 1000L, 1.1, TSCreateParams.createParams().retention(10000).labels(labels2)));
-    Map<String, TSMRangeElements> ranges2 = client.tsMRange(TSMRangeParams.multiRangeParams(500L, 4600L)
+    List<TSKeyedElements> ranges2 = client.tsMRange(TSMRangeParams.multiRangeParams(500L, 4600L)
         .aggregation(AggregationType.COUNT, 1).withLabels().filter("l4=v4"));
     assertEquals(1, ranges2.size());
-    TSMRangeElements elements2 = ranges2.values().stream().findAny().get();
-    assertEquals(labels2, elements2.getLabels());
-    assertEqualsByProtocol(protocol, null, Arrays.asList(AggregationType.COUNT), elements2.getAggregators());
+    assertEquals(labels2, ranges2.get(0).getLabels());
 
     Map<String, String> labels3 = new HashMap<>();
     labels3.put("l3", "v33");
@@ -249,16 +240,13 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     assertEquals(1000L, client.tsAdd("seriesAdd3", 1000L, 1.1, TSCreateParams.createParams().labels(labels3)));
     assertEquals(2000L, client.tsAdd("seriesAdd3", 2000L, 1.1, TSCreateParams.createParams().labels(labels3)));
     assertEquals(3000L, client.tsAdd("seriesAdd3", 3000L, 1.1, TSCreateParams.createParams().labels(labels3)));
-    Map<String, TSMRangeElements> ranges3 = client.tsMRange(TSMRangeParams.multiRangeParams(500L, 4600L)
+    List<TSKeyedElements> ranges3 = client.tsMRange(TSMRangeParams.multiRangeParams(500L, 4600L)
         .aggregation(AggregationType.AVG, 1L).withLabels(true).count(2).filter("l4=v4"));
     assertEquals(2, ranges3.size());
-    ArrayList<TSMRangeElements> ranges3List = new ArrayList<>(ranges3.values());
-    assertEquals(1, ranges3List.get(0).getValue().size());
-    assertEquals(labels2, ranges3List.get(0).getLabels());
-    assertEqualsByProtocol(protocol, null, Arrays.asList(AggregationType.AVG), ranges3List.get(0).getAggregators());
-    assertEquals(2, ranges3List.get(1).getValue().size());
-    assertEquals(labels3, ranges3List.get(1).getLabels());
-    assertEqualsByProtocol(protocol, null, Arrays.asList(AggregationType.AVG), ranges3List.get(1).getAggregators());
+    assertEquals(1, ranges3.get(0).getValue().size());
+    assertEquals(labels2, ranges3.get(0).getLabels());
+    assertEquals(2, ranges3.get(1).getValue().size());
+    assertEquals(labels3, ranges3.get(1).getLabels());
 
     assertEquals(800L, client.tsAdd("seriesAdd", 800L, 1.1));
     assertEquals(700L, client.tsAdd("seriesAdd", 700L, 1.1, TSCreateParams.createParams().retention(10000)));
@@ -494,58 +482,115 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     client.tsAdd("ts1", rawValues[3].getTimestamp(), rawValues[3].getValue());
 
     // MRANGE
-    Map<String, TSMRangeElements> range = client.tsMRange(0L, 5000L, filter);
-    ArrayList<TSMRangeElements> rangeList = new ArrayList<>(range.values());
-    assertEquals("ts1", rangeList.get(0).getKey());
-    assertEquals(Arrays.asList(rawValues[0], rawValues[3]), rangeList.get(0).getValue());
-    assertEquals("ts2", rangeList.get(1).getKey());
-    assertEquals(Arrays.asList(rawValues[1], rawValues[2]), rangeList.get(1).getValue());
+    List<TSKeyedElements> range = client.tsMRange(0L, 5000L, filter);
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0], rawValues[3]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[1], rawValues[2]), range.get(1).getValue());
 
     range = client.tsMRange(TSMRangeParams.multiRangeParams(0L, 5000L).filterByTS(1000L, 2000L).filter(filter));
-    rangeList = new ArrayList<>(range.values());
-    assertEquals("ts1", rangeList.get(0).getKey());
-    assertEquals(Arrays.asList(rawValues[0]), rangeList.get(0).getValue());
-    assertEquals("ts2", rangeList.get(1).getKey());
-    assertEquals(Arrays.asList(rawValues[1]), rangeList.get(1).getValue());
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[1]), range.get(1).getValue());
 
     range = client.tsMRange(TSMRangeParams.multiRangeParams(0L, 5000L).filterByValues(1.0, 1.2).filter(filter));
-    rangeList = new ArrayList<>(range.values());
-    assertEquals("ts1", rangeList.get(0).getKey());
-    assertEquals(Arrays.asList(rawValues[0]), rangeList.get(0).getValue());
-    assertEquals("ts2", rangeList.get(1).getKey());
-    assertEquals(Arrays.asList(rawValues[2]), rangeList.get(1).getValue());
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[2]), range.get(1).getValue());
 
     range = client.tsMRange(TSMRangeParams.multiRangeParams(0L, 5000L)
         .filterByTS(1000L, 2000L).filterByValues(1.0, 1.2).filter(filter));
-    rangeList = new ArrayList<>(range.values());
-    assertEquals(Arrays.asList(rawValues[0]), rangeList.get(0).getValue());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
 
     // MREVRANGE
     range = client.tsMRevRange(0L, 5000L,  filter);
-    rangeList = new ArrayList<>(range.values());
-    assertEquals("ts1", rangeList.get(0).getKey());
-    assertEquals(Arrays.asList(rawValues[3], rawValues[0]), rangeList.get(0).getValue());
-    assertEquals("ts2", rangeList.get(1).getKey());
-    assertEquals(Arrays.asList(rawValues[2], rawValues[1]), rangeList.get(1).getValue());
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[3], rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[2], rawValues[1]), range.get(1).getValue());
 
     range = client.tsMRevRange(TSMRangeParams.multiRangeParams(0L, 5000L).filterByTS(1000L, 2000L).filter(filter));
-    rangeList = new ArrayList<>(range.values());
-    assertEquals("ts1", rangeList.get(0).getKey());
-    assertEquals(Arrays.asList(rawValues[0]), rangeList.get(0).getValue());
-    assertEquals("ts2", rangeList.get(1).getKey());
-    assertEquals(Arrays.asList(rawValues[1]), rangeList.get(1).getValue());
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[1]), range.get(1).getValue());
 
     range = client.tsMRevRange(TSMRangeParams.multiRangeParams(0L, 5000L).filterByValues(1.0, 1.2).filter(filter));
-    rangeList = new ArrayList<>(range.values());
-    assertEquals("ts1", rangeList.get(0).getKey());
-    assertEquals(Arrays.asList(rawValues[0]), rangeList.get(0).getValue());
-    assertEquals("ts2", rangeList.get(1).getKey());
-    assertEquals(Arrays.asList(rawValues[2]), rangeList.get(1).getValue());
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[2]), range.get(1).getValue());
 
     range = client.tsMRevRange(TSMRangeParams.multiRangeParams(0L, 5000L)
         .filterByTS(1000L, 2000L).filterByValues(1.0, 1.2).filter(filter));
-    rangeList = new ArrayList<>(range.values());
-    assertEquals(Arrays.asList(rawValues[0]), rangeList.get(0).getValue());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+  }
+
+  @Test
+  public void mrangeFilterByRoundRobin() {
+    TsMRangeRoundRobin rr;
+    List<TSKeyedElements> range;
+
+    Map<String, String> labels = Collections.singletonMap("label", "multi");
+    client.tsCreate("ts1", TSCreateParams.createParams().labels(labels));
+    client.tsCreate("ts2", TSCreateParams.createParams().labels(labels));
+    String filter = "label=multi";
+
+    TSElement[] rawValues = new TSElement[]{
+      new TSElement(1000L, 1.0),
+      new TSElement(2000L, 0.9),
+      new TSElement(3200L, 1.1),
+      new TSElement(4500L, -1.1)
+    };
+
+    client.tsAdd("ts1", rawValues[0].getTimestamp(), rawValues[0].getValue());
+    client.tsAdd("ts2", rawValues[1].getTimestamp(), rawValues[1].getValue());
+    client.tsAdd("ts2", rawValues[2].getTimestamp(), rawValues[2].getValue());
+    client.tsAdd("ts1", rawValues[3].getTimestamp(), rawValues[3].getValue());
+
+    // MRANGE
+    rr = client.tsMRangeRoundRobin(TSMRangeParams.multiRangeParams(0L, 5000L)
+        .filterByTS(1000L, 2000L).filter(filter));
+    assertFalse(rr.isRoundRobinCompleted());
+    range = rr.get();
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[1]), range.get(1).getValue());
+    assertTrue(rr.isRoundRobinCompleted());
+
+    rr = client.tsMRangeRoundRobin(TSMRangeParams.multiRangeParams(0L, 5000L)
+        .filterByValues(1.0, 1.2).filter(filter));
+    assertFalse(rr.isRoundRobinCompleted());
+    range = rr.get();
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[2]), range.get(1).getValue());
+    assertTrue(rr.isRoundRobinCompleted());
+
+    // MREVRANGE
+    rr = client.tsMRevRangeRoundRobin(TSMRangeParams.multiRangeParams(0L, 5000L)
+        .filterByTS(1000L, 2000L).filter(filter));
+    assertFalse(rr.isRoundRobinCompleted());
+    range = rr.get();
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[1]), range.get(1).getValue());
+    assertTrue(rr.isRoundRobinCompleted());
+
+    rr = client.tsMRevRangeRoundRobin(TSMRangeParams.multiRangeParams(0L, 5000L)
+        .filterByValues(1.0, 1.2).filter(filter));
+    assertFalse(rr.isRoundRobinCompleted());
+    range = rr.get();
+    assertEquals("ts1", range.get(0).getKey());
+    assertEquals(Arrays.asList(rawValues[0]), range.get(0).getValue());
+    assertEquals("ts2", range.get(1).getKey());
+    assertEquals(Arrays.asList(rawValues[2]), range.get(1).getValue());
+    assertTrue(rr.isRoundRobinCompleted());
   }
 
   @Test
@@ -559,32 +604,21 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
 
 //    List<TSElements> range = client.tsMRange(TSMRangeParams.multiGetParams(0L, 100L).withLabels()
 //        .groupByReduce("metric_name", "max"), "metric=cpu");
-    Map<String, TSMRangeElements> range = client.tsMRange(TSMRangeParams.multiRangeParams(0L, 100L).withLabels()
+    List<TSKeyedElements> range = client.tsMRange(TSMRangeParams.multiRangeParams(0L, 100L).withLabels()
         .filter("metric=cpu").groupBy("metric_name", "max"));
     assertEquals(2, range.size());
-    ArrayList<TSMRangeElements> rangeList = new ArrayList<>(range.values());
 
-    assertEquals("metric_name=system", rangeList.get(0).getKey());
-    assertEquals("system", rangeList.get(0).getLabels().get("metric_name"));
-    if (protocol != RedisProtocol.RESP3) {
-      assertEquals("max", rangeList.get(0).getLabels().get("__reducer__"));
-      assertEquals("ts1", rangeList.get(0).getLabels().get("__source__"));
-    } else {
-      assertEquals(Arrays.asList("max"), rangeList.get(0).getReducers());
-      assertEquals(Arrays.asList("ts1"), rangeList.get(0).getSources());
-    }
-    assertEquals(Arrays.asList(new TSElement(1, 90), new TSElement(2, 45)), rangeList.get(0).getValue());
+    assertEquals("metric_name=system", range.get(0).getKey());
+    assertEquals("system", range.get(0).getLabels().get("metric_name"));
+    assertEquals("max", range.get(0).getLabels().get("__reducer__"));
+    assertEquals("ts1", range.get(0).getLabels().get("__source__"));
+    assertEquals(Arrays.asList(new TSElement(1, 90), new TSElement(2, 45)), range.get(0).getValue());
 
-    assertEquals("metric_name=user", rangeList.get(1).getKey());
-    assertEquals("user", rangeList.get(1).getLabels().get("metric_name"));
-    if (protocol != RedisProtocol.RESP3) {
-      assertEquals("max", rangeList.get(1).getLabels().get("__reducer__"));
-      assertEquals("ts2", rangeList.get(1).getLabels().get("__source__"));
-    } else {
-      assertEquals(Arrays.asList("max"), rangeList.get(1).getReducers());
-      assertEquals(Arrays.asList("ts2"), rangeList.get(1).getSources());
-    }
-    assertEquals(Arrays.asList(new TSElement(2, 99)), rangeList.get(1).getValue());
+    assertEquals("metric_name=user", range.get(1).getKey());
+    assertEquals("user", range.get(1).getLabels().get("metric_name"));
+    assertEquals("max", range.get(1).getLabels().get("__reducer__"));
+    assertEquals("ts2", range.get(1).getLabels().get("__source__"));
+    assertEquals(Arrays.asList(new TSElement(2, 99)), range.get(1).getValue());
   }
 
   private Map<String, String> convertMap(String... array) {
@@ -630,26 +664,65 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
         .retention(100 * 1000 /*100sec retentionTime*/).labels(labels)));
 
     // Test for empty result
-    Map<String, TSMGetElement> ranges1 = client.tsMGet(TSMGetParams.multiGetParams().withLabels(false), "l1=v2");
+    List<TSKeyValue<TSElement>> ranges1 = client.tsMGet(TSMGetParams.multiGetParams().withLabels(false), "l1=v2");
     assertEquals(0, ranges1.size());
 
     // Test for empty ranges
-    Map<String, TSMGetElement> ranges2 = client.tsMGet(TSMGetParams.multiGetParams().withLabels(true), "l1=v1");
+    List<TSKeyValue<TSElement>> ranges2 = client.tsMGet(TSMGetParams.multiGetParams().withLabels(true), "l1=v1");
     assertEquals(2, ranges2.size());
-    ArrayList<TSMGetElement> ranges2List = new ArrayList<>(ranges2.values());
-    assertEquals(labels, ranges2List.get(0).getLabels());
-    assertEquals(labels, ranges2List.get(1).getLabels());
-    assertNull(ranges2List.get(0).getValue());
+    assertEquals(labels, ranges2.get(0).getLabels());
+    assertEquals(labels, ranges2.get(1).getLabels());
+    assertNull(ranges2.get(0).getValue());
 
     // Test for returned result on MGet
     client.tsAdd("seriesMGet1", 1500, 1.3);
-    Map<String, TSMGetElement> ranges3 = client.tsMGet(TSMGetParams.multiGetParams().withLabels(false), "l1=v1");
+    List<TSKeyValue<TSElement>> ranges3 = client.tsMGet(TSMGetParams.multiGetParams().withLabels(false), "l1=v1");
     assertEquals(2, ranges3.size());
-    ArrayList<TSMGetElement> ranges3List = new ArrayList<>(ranges3.values());
-    assertEquals(Collections.emptyMap(), ranges3List.get(0).getLabels());
-    assertEquals(Collections.emptyMap(), ranges3List.get(1).getLabels());
-    assertEquals(new TSElement(1500, 1.3), ranges3List.get(0).getValue());
-    assertNull(ranges3List.get(1).getValue());
+    assertEquals(Collections.emptyMap(), ranges3.get(0).getLabels());
+    assertEquals(Collections.emptyMap(), ranges3.get(1).getLabels());
+    assertEquals(new TSElement(1500, 1.3), ranges3.get(0).getValue());
+    assertNull(ranges3.get(1).getValue());
+  }
+
+  @Test
+  public void mgetRoundRobin() {
+    TsMGetRoundRobin rr;
+    Map<String, String> labels = new HashMap<>();
+    labels.put("l1", "v1");
+    labels.put("l2", "v2");
+    assertEquals("OK", client.tsCreate("seriesMGet1", TSCreateParams.createParams()
+        .retention(100 * 1000 /*100sec retentionTime*/).labels(labels)));
+    assertEquals("OK", client.tsCreate("seriesMGet2", TSCreateParams.createParams()
+        .retention(100 * 1000 /*100sec retentionTime*/).labels(labels)));
+
+    // Test for empty result
+    rr = client.tsMGetRoundRobin(TSMGetParams.multiGetParams().withLabels(false), "l1=v2");
+    assertFalse(rr.isRoundRobinCompleted());
+    List<TSKeyValue<TSElement>> ranges1 = rr.get();
+    assertEquals(0, ranges1.size());
+    assertTrue(rr.isRoundRobinCompleted());
+
+    // Test for empty ranges
+    rr = client.tsMGetRoundRobin(TSMGetParams.multiGetParams().withLabels(true), "l1=v1");
+    assertFalse(rr.isRoundRobinCompleted());
+    List<TSKeyValue<TSElement>> ranges2 = rr.get();
+    assertEquals(2, ranges2.size());
+    assertEquals(labels, ranges2.get(0).getLabels());
+    assertEquals(labels, ranges2.get(1).getLabels());
+    assertNull(ranges2.get(0).getValue());
+    assertTrue(rr.isRoundRobinCompleted());
+
+    // Test for returned result on MGet
+    client.tsAdd("seriesMGet1", 1500, 1.3);
+    rr = client.tsMGetRoundRobin(TSMGetParams.multiGetParams().withLabels(false), "l1=v1");
+    assertFalse(rr.isRoundRobinCompleted());
+    List<TSKeyValue<TSElement>> ranges3 = rr.get();
+    assertEquals(2, ranges3.size());
+    assertEquals(Collections.emptyMap(), ranges3.get(0).getLabels());
+    assertEquals(Collections.emptyMap(), ranges3.get(1).getLabels());
+    assertEquals(new TSElement(1500, 1.3), ranges3.get(0).getValue());
+    assertNull(ranges3.get(1).getValue());
+    assertTrue(rr.isRoundRobinCompleted());
   }
 
   @Test
@@ -774,7 +847,7 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
   @Test
   public void testMRevRange() {
 
-    assertEquals(Collections.emptyMap(), client.tsMRevRange(TSMRangeParams.multiRangeParams().filter("l=v")));
+    assertEquals(Collections.emptyList(), client.tsMRevRange(TSMRangeParams.multiRangeParams().filter("l=v")));
 
     Map<String, String> labels1 = new HashMap<>();
     labels1.put("l3", "v3");
@@ -783,12 +856,11 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
         TSCreateParams.createParams().retention(10000).labels(labels1)));
     assertEquals(2222L, client.tsAdd("seriesMRevRange1", 2222L, 3.1,
         TSCreateParams.createParams().retention(10000).labels(labels1)));
-    Map<String, TSMRangeElements> ranges1 = client.tsMRevRange(TSMRangeParams.multiRangeParams(500L, 4600L)
+    List<TSKeyedElements> ranges1 = client.tsMRevRange(TSMRangeParams.multiRangeParams(500L, 4600L)
         .aggregation(AggregationType.COUNT, 1).withLabels().filter("l4=v4"));
     assertEquals(1, ranges1.size());
-    ArrayList<TSMRangeElements> ranges1List = new ArrayList<>(ranges1.values());
-    assertEquals(labels1, ranges1List.get(0).getLabels());
-    assertEquals(Arrays.asList(new TSElement(2222L, 1.0), new TSElement(1000L, 1.0)), ranges1List.get(0).getValue());
+    assertEquals(labels1, ranges1.get(0).getLabels());
+    assertEquals(Arrays.asList(new TSElement(2222L, 1.0), new TSElement(1000L, 1.0)), ranges1.get(0).getValue());
 
     Map<String, String> labels2 = new HashMap<>();
     labels2.put("l3", "v3");
@@ -797,13 +869,12 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
         TSCreateParams.createParams().retention(10000).labels(labels2)));
     assertEquals(1111L, client.tsAdd("seriesMRevRange2", 1111L, 99.99,
         TSCreateParams.createParams().retention(10000).labels(labels2)));
-    Map<String, TSMRangeElements> ranges2 = client.tsMRevRange(500L, 4600L, "l3=v3");
+    List<TSKeyedElements> ranges2 = client.tsMRevRange(500L, 4600L, "l3=v3");
     assertEquals(2, ranges2.size());
-    ArrayList<TSMRangeElements> ranges2List = new ArrayList<>(ranges2.values());
-    assertEquals(Collections.emptyMap(), ranges2List.get(0).getLabels());
-    assertEquals(Arrays.asList(new TSElement(2222L, 3.1), new TSElement(1000L, 1.1)), ranges2List.get(0).getValue());
-    assertEquals(Collections.emptyMap(), ranges2List.get(0).getLabels());
-    assertEquals(Arrays.asList(new TSElement(1111L, 99.99), new TSElement(1000L, 8.88)), ranges2List.get(1).getValue());
+    assertEquals(Collections.emptyMap(), ranges2.get(0).getLabels());
+    assertEquals(Arrays.asList(new TSElement(2222L, 3.1), new TSElement(1000L, 1.1)), ranges2.get(0).getValue());
+    assertEquals(Collections.emptyMap(), ranges2.get(0).getLabels());
+    assertEquals(Arrays.asList(new TSElement(1111L, 99.99), new TSElement(1000L, 8.88)), ranges2.get(1).getValue());
 
     Map<String, String> labels3 = new HashMap<>();
     labels3.put("l3", "v33");
@@ -811,14 +882,13 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     assertEquals(2200L, client.tsAdd("seriesMRevRange3", 2200L, -1.1, TSCreateParams.createParams().labels(labels3)));
     assertEquals(2400L, client.tsAdd("seriesMRevRange3", 2400L, 1.1, TSCreateParams.createParams().labels(labels3)));
     assertEquals(3300L, client.tsAdd("seriesMRevRange3", 3300L, -33, TSCreateParams.createParams().labels(labels3)));
-    Map<String, TSMRangeElements> ranges3 = client.tsMRevRange(TSMRangeParams.multiRangeParams(500L, 4600L)
+    List<TSKeyedElements> ranges3 = client.tsMRevRange(TSMRangeParams.multiRangeParams(500L, 4600L)
         .aggregation(AggregationType.AVG, 500).withLabels().count(5).filter("l4=v4"));
     assertEquals(2, ranges3.size());
-    ArrayList<TSMRangeElements> ranges3List = new ArrayList<>(ranges3.values());
-    assertEquals(labels1, ranges3List.get(0).getLabels());
-    assertEquals(Arrays.asList(new TSElement(2000L, 3.1), new TSElement(1000L, 1.1)), ranges3List.get(0).getValue());
-    assertEquals(labels3, ranges3List.get(1).getLabels());
-    assertEquals(Arrays.asList(new TSElement(3000L, -33.0), new TSElement(2000L, 0.0)), ranges3List.get(1).getValue());
+    assertEquals(labels1, ranges3.get(0).getLabels());
+    assertEquals(Arrays.asList(new TSElement(2000L, 3.1), new TSElement(1000L, 1.1)), ranges3.get(0).getValue());
+    assertEquals(labels3, ranges3.get(1).getLabels());
+    assertEquals(Arrays.asList(new TSElement(3000L, -33.0), new TSElement(2000L, 0.0)), ranges3.get(1).getValue());
   }
 
   @Test
@@ -868,33 +938,25 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     final TSElement latest = new TSElement(10, 8);
 
     // mget
-    assertEquals(makeSingletonMap(new TSMGetElement("ts2", null, compact)),
+    assertEquals(Arrays.asList(new TSKeyValue<>("ts2", null, compact)),
         client.tsMGet(TSMGetParams.multiGetParams(), "compact=true"));
 
-    assertEquals(makeSingletonMap(new TSMGetElement("ts2", null, latest)),
+    assertEquals(Arrays.asList(new TSKeyValue<>("ts2", null, latest)),
         client.tsMGet(TSMGetParams.multiGetParams().latest(), "compact=true"));
 
     // mrange
-    assertEquals(makeSingletonMap(new TSMRangeElements("ts2", null, Arrays.asList(compact))),
+    assertEquals(Arrays.asList(new TSKeyedElements("ts2", null, Arrays.asList(compact))),
         client.tsMRange(TSMRangeParams.multiRangeParams().filter("compact=true")));
 
-    assertEquals(makeSingletonMap(new TSMRangeElements("ts2", null, Arrays.asList(compact, latest))),
+    assertEquals(Arrays.asList(new TSKeyedElements("ts2", null, Arrays.asList(compact, latest))),
         client.tsMRange(TSMRangeParams.multiRangeParams().latest().filter("compact=true")));
 
     // mrevrange
-    assertEquals(makeSingletonMap(new TSMRangeElements("ts2", null, Arrays.asList(compact))),
+    assertEquals(Arrays.asList(new TSKeyedElements("ts2", null, Arrays.asList(compact))),
         client.tsMRevRange(TSMRangeParams.multiRangeParams().filter("compact=true")));
 
-    assertEquals(makeSingletonMap(new TSMRangeElements("ts2", null, Arrays.asList(latest, compact))),
+    assertEquals(Arrays.asList(new TSKeyedElements("ts2", null, Arrays.asList(latest, compact))),
         client.tsMRevRange(TSMRangeParams.multiRangeParams().latest().filter("compact=true")));
-  }
-
-  private Map<String, TSMGetElement> makeSingletonMap(TSMGetElement value) {
-    return Collections.singletonMap(value.getKey(), value);
-  }
-
-  private Map<String, TSMRangeElements> makeSingletonMap(TSMRangeElements value) {
-    return Collections.singletonMap(value.getKey(), value);
   }
 
   @Test
@@ -920,30 +982,22 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
     assertNotNull(range.get(1).getValue()); // any parsable value
 
     // mrange
-    Map<String, TSMRangeElements> mrange = client.tsMRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.MIN, 5).filter("l=v"));
+    List<TSKeyedElements> mrange = client.tsMRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.MIN, 5).filter("l=v"));
     assertEquals(1, mrange.size());
-    ArrayList<TSMRangeElements> mrangeList = new ArrayList<>(mrange.values());
-    assertEquals(2, mrangeList.get(0).getValue().size());
-    mrange = client.tsMRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.MIN, 5).empty().filter("l=v"));
+    assertEquals(2, mrange.get(0).getValue().size());
+    mrange = client.tsMRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.MIN, 5).empty().filter("l=v"));
     assertEquals(1, mrange.size());
-    mrangeList = new ArrayList<>(mrange.values());
-    assertEquals(3, mrangeList.get(0).getValue().size());
-    assertNotNull(mrangeList.get(0).getValue().get(1).getValue()); // any parsable value
+    assertEquals(3, mrange.get(0).getValue().size());
+    assertNotNull(mrange.get(0).getValue().get(1).getValue()); // any parsable value
 
     // mrevrange
-    mrange = client.tsMRevRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.MAX, 5).filter("l=v"));
+    mrange = client.tsMRevRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.MAX, 5).filter("l=v"));
     assertEquals(1, mrange.size());
-    mrangeList = new ArrayList<>(mrange.values());
-    assertEquals(2, mrangeList.get(0).getValue().size());
-    mrange = client.tsMRevRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.MAX, 5).empty().filter("l=v"));
+    assertEquals(2, mrange.get(0).getValue().size());
+    mrange = client.tsMRevRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.MAX, 5).empty().filter("l=v"));
     assertEquals(1, mrange.size());
-    mrangeList = new ArrayList<>(mrange.values());
-    assertEquals(3, mrangeList.get(0).getValue().size());
-    assertNotNull(mrangeList.get(0).getValue().get(1).getValue()); // any parsable value
+    assertEquals(3, mrange.get(0).getValue().size());
+    assertNotNull(mrange.get(0).getValue().get(1).getValue()); // any parsable value
   }
 
   @Test
@@ -965,21 +1019,16 @@ public class TimeSeriesTest extends RedisModuleCommandsTestBase {
         .aggregation(AggregationType.TWA, 10).bucketTimestamp("mid")).get(0).getTimestamp());
 
     // mrange / mrevrange
-    assertEquals(0, client.tsMRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.STD_P, 10).bucketTimestampLow().filter("l=v"))
-        .values().stream().findAny().get().getValue().get(0).getTimestamp());
-    assertEquals(10, client.tsMRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.STD_S, 10).bucketTimestampHigh().filter("l=v"))
-        .values().stream().findAny().get().getValue().get(0).getTimestamp());
-    assertEquals(5, client.tsMRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.TWA, 10).bucketTimestampMid().filter("l=v"))
-        .values().stream().findAny().get().getValue().get(0).getTimestamp());
-    assertEquals(5, client.tsMRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.VAR_P, 10).bucketTimestampMid().filter("l=v"))
-        .values().stream().findAny().get().getValue().get(0).getTimestamp());
-    assertEquals(5, client.tsMRange(TSMRangeParams.multiRangeParams()
-        .aggregation(AggregationType.VAR_S, 10).bucketTimestamp("~").filter("l=v"))
-        .values().stream().findAny().get().getValue().get(0).getTimestamp());
+    assertEquals(0, client.tsMRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.STD_P, 10)
+        .bucketTimestampLow().filter("l=v")).get(0).getValue().get(0).getTimestamp());
+    assertEquals(10, client.tsMRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.STD_S, 10)
+        .bucketTimestampHigh().filter("l=v")).get(0).getValue().get(0).getTimestamp());
+    assertEquals(5, client.tsMRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.TWA, 10)
+        .bucketTimestampMid().filter("l=v")).get(0).getValue().get(0).getTimestamp());
+    assertEquals(5, client.tsMRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.VAR_P, 10)
+        .bucketTimestampMid().filter("l=v")).get(0).getValue().get(0).getTimestamp());
+    assertEquals(5, client.tsMRange(TSMRangeParams.multiRangeParams().aggregation(AggregationType.VAR_S, 10)
+        .bucketTimestamp("~").filter("l=v")).get(0).getValue().get(0).getTimestamp());
   }
 
   @Test

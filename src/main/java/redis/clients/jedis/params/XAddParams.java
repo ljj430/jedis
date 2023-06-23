@@ -1,15 +1,21 @@
 package redis.clients.jedis.params;
 
+import static redis.clients.jedis.Protocol.Keyword.LIMIT;
+import static redis.clients.jedis.Protocol.Keyword.MAXLEN;
+import static redis.clients.jedis.Protocol.Keyword.MINID;
+import static redis.clients.jedis.Protocol.Keyword.NOMKSTREAM;
+import static redis.clients.jedis.util.SafeEncoder.encode;
+
+import java.util.Arrays;
 import redis.clients.jedis.CommandArguments;
 import redis.clients.jedis.Protocol;
-import redis.clients.jedis.Protocol.Keyword;
 import redis.clients.jedis.StreamEntryID;
-import redis.clients.jedis.args.Rawable;
-import redis.clients.jedis.args.RawableFactory;
 
 public class XAddParams implements IParams {
 
-  private Rawable id;
+  private static final byte[] NEW_ENTRY = encode(StreamEntryID.NEW_ENTRY.toString());
+
+  private byte[] id;
 
   private Long maxLen;
 
@@ -33,12 +39,12 @@ public class XAddParams implements IParams {
   }
 
   public XAddParams id(byte[] id) {
-    this.id = RawableFactory.from(id);
+    this.id = Arrays.copyOf(id, id.length);
     return this;
   }
 
   public XAddParams id(String id) {
-    this.id = RawableFactory.from(id);
+    this.id = encode(id);
     return this;
   }
 
@@ -83,11 +89,11 @@ public class XAddParams implements IParams {
   public void addParams(CommandArguments args) {
 
     if (nomkstream) {
-      args.add(Keyword.NOMKSTREAM);
+      args.add(NOMKSTREAM.getRaw());
     }
 
     if (maxLen != null) {
-      args.add(Keyword.MAXLEN);
+      args.add(MAXLEN.getRaw());
 
       if (approximateTrimming) {
         args.add(Protocol.BYTES_TILDE);
@@ -95,9 +101,9 @@ public class XAddParams implements IParams {
         args.add(Protocol.BYTES_EQUAL);
       }
 
-      args.add(maxLen);
+      args.add(Protocol.toByteArray(maxLen));
     } else if (minId != null) {
-      args.add(Keyword.MINID);
+      args.add(MINID.getRaw());
 
       if (approximateTrimming) {
         args.add(Protocol.BYTES_TILDE);
@@ -105,13 +111,14 @@ public class XAddParams implements IParams {
         args.add(Protocol.BYTES_EQUAL);
       }
 
-      args.add(minId);
+      args.add(encode(minId));
     }
 
     if (limit != null) {
-      args.add(Keyword.LIMIT).add(limit);
+      args.add(LIMIT.getRaw());
+      args.add(Protocol.toByteArray(limit));
     }
 
-    args.add(id != null ? id : StreamEntryID.NEW_ENTRY);
+    args.add(id != null ? id : NEW_ENTRY);
   }
 }

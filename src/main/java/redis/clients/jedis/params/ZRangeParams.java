@@ -2,6 +2,8 @@ package redis.clients.jedis.params;
 
 import static redis.clients.jedis.Protocol.Keyword.BYLEX;
 import static redis.clients.jedis.Protocol.Keyword.BYSCORE;
+import static redis.clients.jedis.Protocol.Keyword.LIMIT;
+import static redis.clients.jedis.Protocol.Keyword.REV;
 import static redis.clients.jedis.args.RawableFactory.from;
 
 import redis.clients.jedis.CommandArguments;
@@ -87,15 +89,20 @@ public class ZRangeParams implements IParams {
 
     args.add(min).add(max);
     if (by != null) {
+//      if (by == BYSCORE || by == BYLEX) {
+//        args.add(by);
+//      } else {
+//        throw new IllegalArgumentException(by.name() + " is not a valid ZRANGE type argument.");
+//      }
       args.add(by);
     }
 
     if (rev) {
-      args.add(Keyword.REV);
+      args.add(REV);
     }
 
-    if (limit) {
-      args.add(Keyword.LIMIT).add(offset).add(count);
+    if (this.limit) {
+      args.add(LIMIT).add(offset).add(count);
     }
   }
 }

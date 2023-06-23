@@ -1,7 +1,11 @@
 package redis.clients.jedis.params;
 
+import static redis.clients.jedis.Protocol.Keyword.IDLE;
+import static redis.clients.jedis.Protocol.Keyword.TIME;
+import static redis.clients.jedis.Protocol.Keyword.RETRYCOUNT;
+import static redis.clients.jedis.Protocol.Keyword.FORCE;
+
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.Protocol.Keyword;
 
 public class XClaimParams implements IParams {
 
@@ -60,16 +64,16 @@ public class XClaimParams implements IParams {
   @Override
   public void addParams(CommandArguments args) {
     if (idleTime != null) {
-      args.add(Keyword.IDLE).add(idleTime);
+      args.add(IDLE).add(idleTime);
     }
     if (idleUnixTime != null) {
-      args.add(Keyword.TIME).add(idleUnixTime);
+      args.add(TIME).add(idleUnixTime);
     }
     if (retryCount != null) {
-      args.add(Keyword.RETRYCOUNT).add(retryCount);
+      args.add(RETRYCOUNT).add(retryCount);
     }
     if (force) {
-      args.add(Keyword.FORCE);
+      args.add(FORCE);
     }
   }
 }
