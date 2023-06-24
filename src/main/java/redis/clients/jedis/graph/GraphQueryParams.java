@@ -2,10 +2,7 @@ package redis.clients.jedis.graph;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
-
 import redis.clients.jedis.CommandArguments;
-import redis.clients.jedis.commands.ProtocolCommand;
 import redis.clients.jedis.exceptions.JedisException;
 import redis.clients.jedis.graph.GraphProtocol.GraphCommand;
 import redis.clients.jedis.graph.GraphProtocol.GraphKeyword;
@@ -86,11 +83,6 @@ public class GraphQueryParams implements IParams {
     }
   }
 
-  public boolean isReadonly() {
-    return readonly;
-  }
-
-  @Deprecated
   public CommandArguments getArguments(String graphName) {
     return new CommandArguments(!readonly ? GraphCommand.QUERY : GraphCommand.RO_QUERY)
         .key(graphName).addParams(this);
