@@ -97,7 +97,7 @@ public class JedisPoolTest {
     try (Jedis jedis = pool.getResource()) {
       jedis.auth("foobared");
       jedis.set("foo", "0");
-      jedis.disconnect();
+      jedis.quit();
     }
 
     try (Jedis jedis = pool.getResource()) {

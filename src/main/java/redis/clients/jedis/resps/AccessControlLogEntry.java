@@ -2,7 +2,6 @@ package redis.clients.jedis.resps;
 
 import java.io.Serializable;
 import java.util.*;
-import redis.clients.jedis.util.DoublePrecision;
 
 /**
  * This class holds information about an Access Control Log entry (returned by ACL LOG command) They
@@ -30,8 +29,7 @@ public class AccessControlLogEntry implements Serializable {
   private final String context;
   private final String object;
   private final String username;
-  private final String ageSeconds; // TODO: RESP3
-  private final Double ageSecondsAsDouble;
+  private final String ageSeconds;
   private final Map<String, String> clientInfo;
   private final Map<String, Object> logEntry;
   private final long entryId;
@@ -44,25 +42,7 @@ public class AccessControlLogEntry implements Serializable {
     context = (String) map.get(CONTEXT);
     object = (String) map.get(OBJECT);
     username = (String) map.get(USERNAME);
-
-    Object ageSecondsObj = map.get(AGE_SECONDS);
-    if (ageSecondsObj == null) {
-      ageSeconds = null;
-      ageSecondsAsDouble = null;
-    } else if (ageSecondsObj instanceof Double) {
-      ageSecondsAsDouble = (Double) ageSecondsObj;
-      ageSeconds = ageSecondsAsDouble.toString();
-    } else {
-      ageSeconds = (String) ageSecondsObj;
-      Double _ageSecondsDouble;
-      try {
-        _ageSecondsDouble = DoublePrecision.parseFloatingPointNumber(ageSeconds);
-      } catch (NumberFormatException nfe) {
-        _ageSecondsDouble = null;
-      }
-      ageSecondsAsDouble = _ageSecondsDouble;
-    }
-
+    ageSeconds = (String) map.get(AGE_SECONDS);
     clientInfo = getMapFromRawClientInfo((String) map.get(CLIENT_INFO));
     logEntry = map;
     entryId = (long) map.get(ENTRY_ID);
@@ -92,10 +72,6 @@ public class AccessControlLogEntry implements Serializable {
 
   public String getAgeSeconds() {
     return ageSeconds;
-  }
-
-  public Double getAgeSecondsDouble() {
-    return ageSecondsAsDouble;
   }
 
   public Map<String, String> getClientInfo() {

@@ -5,7 +5,6 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.providers.ClusterConnectionProvider;
 import redis.clients.jedis.util.IOUtils;
 
-// TODO: RESP3
 public class ClusterPipeline extends MultiNodePipelineBase {
 
   private final ClusterConnectionProvider provider;

@@ -766,7 +766,6 @@ public class GraphAPITest extends RedisModuleCommandsTestBase {
   }
 
   @Test
-  // TODO: RESP3
   public void slowlog() {
     assertNotNull(client.graphProfile("social", "CREATE (:person{name:'roi',age:32})"));
     assertNotNull(client.graphProfile("social", "CREATE (:person{name:'amit',age:30})"));

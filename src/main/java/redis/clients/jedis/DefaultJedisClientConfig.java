@@ -7,8 +7,6 @@ import javax.net.ssl.SSLSocketFactory;
 
 public final class DefaultJedisClientConfig implements JedisClientConfig {
 
-  private final RedisProtocol redisProtocol;
-
   private final int connectionTimeoutMillis;
   private final int socketTimeoutMillis;
   private final int blockingSocketTimeoutMillis;
@@ -24,11 +22,10 @@ public final class DefaultJedisClientConfig implements JedisClientConfig {
 
   private final HostAndPortMapper hostAndPortMapper;
 
-  private DefaultJedisClientConfig(RedisProtocol protocol, int connectionTimeoutMillis, int soTimeoutMillis,
+  private DefaultJedisClientConfig(int connectionTimeoutMillis, int soTimeoutMillis,
       int blockingSocketTimeoutMillis, Supplier<RedisCredentials> credentialsProvider, int database,
       String clientName, boolean ssl, SSLSocketFactory sslSocketFactory, SSLParameters sslParameters,
       HostnameVerifier hostnameVerifier, HostAndPortMapper hostAndPortMapper) {
-    this.redisProtocol = protocol;
     this.connectionTimeoutMillis = connectionTimeoutMillis;
     this.socketTimeoutMillis = soTimeoutMillis;
     this.blockingSocketTimeoutMillis = blockingSocketTimeoutMillis;
@@ -40,11 +37,6 @@ public final class DefaultJedisClientConfig implements JedisClientConfig {
     this.sslParameters = sslParameters;
     this.hostnameVerifier = hostnameVerifier;
     this.hostAndPortMapper = hostAndPortMapper;
-  }
-
-  @Override
-  public RedisProtocol getRedisProtocol() {
-    return redisProtocol;
   }
 
   @Override
@@ -126,8 +118,6 @@ public final class DefaultJedisClientConfig implements JedisClientConfig {
 
   public static class Builder {
 
-    private RedisProtocol redisProtocol = null;
-
     private int connectionTimeoutMillis = Protocol.DEFAULT_TIMEOUT;
     private int socketTimeoutMillis = Protocol.DEFAULT_TIMEOUT;
     private int blockingSocketTimeoutMillis = 0;
@@ -154,14 +144,9 @@ public final class DefaultJedisClientConfig implements JedisClientConfig {
             new DefaultRedisCredentials(user, password));
       }
 
-      return new DefaultJedisClientConfig(redisProtocol, connectionTimeoutMillis, socketTimeoutMillis,
+      return new DefaultJedisClientConfig(connectionTimeoutMillis, socketTimeoutMillis,
           blockingSocketTimeoutMillis, credentialsProvider, database, clientName, ssl,
           sslSocketFactory, sslParameters, hostnameVerifier, hostAndPortMapper);
-    }
-
-    public Builder protocol(RedisProtocol protocol) {
-      this.redisProtocol = protocol;
-      return this;
     }
 
     public Builder timeoutMillis(int timeoutMillis) {
@@ -245,17 +230,18 @@ public final class DefaultJedisClientConfig implements JedisClientConfig {
       int blockingSocketTimeoutMillis, String user, String password, int database, String clientName,
       boolean ssl, SSLSocketFactory sslSocketFactory, SSLParameters sslParameters,
       HostnameVerifier hostnameVerifier, HostAndPortMapper hostAndPortMapper) {
-    return new DefaultJedisClientConfig(null,
+    return new DefaultJedisClientConfig(
         connectionTimeoutMillis, soTimeoutMillis, blockingSocketTimeoutMillis,
-        new DefaultRedisCredentialsProvider(new DefaultRedisCredentials(user, password)), database,
-        clientName, ssl, sslSocketFactory, sslParameters, hostnameVerifier, hostAndPortMapper);
+        new DefaultRedisCredentialsProvider(new DefaultRedisCredentials(user, password)),
+        database, clientName, ssl, sslSocketFactory, sslParameters,
+        hostnameVerifier, hostAndPortMapper);
   }
 
   public static DefaultJedisClientConfig copyConfig(JedisClientConfig copy) {
-    return new DefaultJedisClientConfig(copy.getRedisProtocol(),
-        copy.getConnectionTimeoutMillis(), copy.getSocketTimeoutMillis(),
-        copy.getBlockingSocketTimeoutMillis(), copy.getCredentialsProvider(),
-        copy.getDatabase(), copy.getClientName(), copy.isSsl(), copy.getSslSocketFactory(),
-        copy.getSslParameters(), copy.getHostnameVerifier(), copy.getHostAndPortMapper());
+    return new DefaultJedisClientConfig(copy.getConnectionTimeoutMillis(),
+        copy.getSocketTimeoutMillis(), copy.getBlockingSocketTimeoutMillis(),
+        copy.getCredentialsProvider(), copy.getDatabase(), copy.getClientName(),
+        copy.isSsl(), copy.getSslSocketFactory(), copy.getSslParameters(),
+        copy.getHostnameVerifier(), copy.getHostAndPortMapper());
   }
 }

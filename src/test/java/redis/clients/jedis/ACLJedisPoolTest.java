@@ -102,7 +102,7 @@ public class ACLJedisPoolTest {
         "fizzbuzz", Protocol.DEFAULT_DATABASE, "repairable-pool");
     try (Jedis jedis = pool.getResource()) {
       jedis.set("foo", "0");
-      jedis.disconnect();
+      jedis.quit();
     }
 
     try (Jedis jedis = pool.getResource()) {
