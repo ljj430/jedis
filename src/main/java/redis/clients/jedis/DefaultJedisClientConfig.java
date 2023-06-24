@@ -79,13 +79,6 @@ public final class DefaultJedisClientConfig implements JedisClientConfig {
   }
 
   @Override
-  @Deprecated
-  public synchronized void updatePassword(String password) {
-    ((DefaultRedisCredentialsProvider) this.credentialsProvider)
-        .setCredentials(new DefaultRedisCredentials(getUser(), password));
-  }
-
-  @Override
   public int getDatabase() {
     return database;
   }
@@ -157,6 +150,13 @@ public final class DefaultJedisClientConfig implements JedisClientConfig {
       return new DefaultJedisClientConfig(redisProtocol, connectionTimeoutMillis, socketTimeoutMillis,
           blockingSocketTimeoutMillis, credentialsProvider, database, clientName, ssl,
           sslSocketFactory, sslParameters, hostnameVerifier, hostAndPortMapper);
+    }
+
+    /**
+     * Shortcut to {@link Builder#protocol(redis.clients.jedis.RedisProtocol)} with {@link RedisProtocol#RESP3}.
+     */
+    public Builder resp3() {
+      return protocol(RedisProtocol.RESP3);
     }
 
     public Builder protocol(RedisProtocol protocol) {
