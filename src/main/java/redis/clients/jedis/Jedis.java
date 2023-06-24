@@ -73,6 +73,8 @@ public class Jedis implements ServerCommands, DatabaseCommands, JedisCommands, J
 
   public Jedis(final HostAndPort hostPort, final JedisClientConfig config) {
     connection = new Connection(hostPort, config);
+    RedisProtocol proto = config.getRedisProtocol();
+    if (proto != null) commandObjects.setProtocol(proto);
   }
 
   public Jedis(final String host, final int port, final boolean ssl) {
@@ -204,6 +206,8 @@ public class Jedis implements ServerCommands, DatabaseCommands, JedisCommands, J
             .ssl(JedisURIHelper.isRedisSSLScheme(uri)).sslSocketFactory(config.getSslSocketFactory())
             .sslParameters(config.getSslParameters()).hostnameVerifier(config.getHostnameVerifier())
             .build());
+    RedisProtocol proto = config.getRedisProtocol();
+    if (proto != null) commandObjects.setProtocol(proto);
   }
 
   public Jedis(final JedisSocketFactory jedisSocketFactory) {
@@ -212,6 +216,8 @@ public class Jedis implements ServerCommands, DatabaseCommands, JedisCommands, J
 
   public Jedis(final JedisSocketFactory jedisSocketFactory, final JedisClientConfig clientConfig) {
     connection = new Connection(jedisSocketFactory, clientConfig);
+    RedisProtocol proto = clientConfig.getRedisProtocol();
+    if (proto != null) commandObjects.setProtocol(proto);
   }
 
   public Jedis(final Connection connection) {
@@ -408,18 +414,6 @@ public class Jedis implements ServerCommands, DatabaseCommands, JedisCommands, J
     checkIsInMultiOrPipeline();
     connection.sendCommand(FLUSHALL, flushMode.getRaw());
     return connection.getStatusCodeReply();
-  }
-
-  /**
-   * Ask the server to silently close the connection.
-   * @deprecated The QUIT command is deprecated, see <a href="https://github.com/redis/redis/issues/11420">#11420</a>.
-   * {@link Jedis#disconnect()} can be used instead.
-   */
-  @Override
-  @Deprecated
-  public String quit() {
-    checkIsInMultiOrPipeline();
-    return connection.quit();
   }
 
   /**
@@ -3376,9 +3370,7 @@ public class Jedis implements ServerCommands, DatabaseCommands, JedisCommands, J
    * Synchronously save the DB on disk, then shutdown the server.
    * <p>
    * Stop all the clients, save the DB, then quit the server. This commands makes sure that the DB
-   * is switched off without the lost of any data. This is not guaranteed if the connection uses
-   * simply {@link Jedis#save() SAVE} and then {@link Jedis#quit() QUIT} because other clients may
-   * alter the DB data between the two commands.
+   * is switched off without the lost of any data.
    * @throws JedisException with the status code reply on error. On success nothing is thrown since
    *         the server quits and the connection is closed.
    */

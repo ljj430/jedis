@@ -33,6 +33,12 @@ import redis.clients.jedis.util.KeyValue;
 
 public class CommandObjects {
 
+  private RedisProtocol proto;
+
+  protected void setProtocol(RedisProtocol proto) {
+    this.proto = proto;
+  }
+
   private volatile JsonObjectMapper jsonObjectMapper;
 
   private JedisBroadcastAndRoundRobinConfig broadcastAndRoundRobinConfig = null;
@@ -1105,7 +1111,8 @@ public class CommandObjects {
   }
 
   public final CommandObject<Map<String, String>> hrandfieldWithValues(String key, long count) {
-    return new CommandObject<>(commandArguments(HRANDFIELD).key(key).add(count).add(WITHVALUES), BuilderFactory.STRING_MAP);
+    return new CommandObject<>(commandArguments(HRANDFIELD).key(key).add(count).add(WITHVALUES),
+        proto != RedisProtocol.RESP3 ? BuilderFactory.STRING_MAP : BuilderFactory.STRING_MAP_FROM_PAIRS);
   }
 
   public final CommandObject<Map<byte[], byte[]>> hgetAll(byte[] key) {
@@ -1121,7 +1128,8 @@ public class CommandObjects {
   }
 
   public final CommandObject<Map<byte[], byte[]>> hrandfieldWithValues(byte[] key, long count) {
-    return new CommandObject<>(commandArguments(HRANDFIELD).key(key).add(count).add(WITHVALUES), BuilderFactory.BINARY_MAP);
+    return new CommandObject<>(commandArguments(HRANDFIELD).key(key).add(count).add(WITHVALUES),
+        proto != RedisProtocol.RESP3 ? BuilderFactory.BINARY_MAP : BuilderFactory.BINARY_MAP_FROM_PAIRS);
   }
 
   public final CommandObject<ScanResult<Map.Entry<String, String>>> hscan(String key, String cursor, ScanParams params) {
@@ -1413,7 +1421,7 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zrandmemberWithScores(String key, long count) {
-    return new CommandObject<>(commandArguments(ZRANDMEMBER).key(key).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZRANDMEMBER).key(key).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<byte[]> zrandmember(byte[] key) {
@@ -1425,7 +1433,7 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zrandmemberWithScores(byte[] key, long count) {
-    return new CommandObject<>(commandArguments(ZRANDMEMBER).key(key).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZRANDMEMBER).key(key).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<Long> zcard(String key) {
@@ -1457,7 +1465,7 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zpopmax(String key, int count) {
-    return new CommandObject<>(commandArguments(ZPOPMAX).key(key).add(count), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZPOPMAX).key(key).add(count), getTupleListBuilder());
   }
 
   public final CommandObject<Tuple> zpopmin(String key) {
@@ -1465,7 +1473,7 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zpopmin(String key, int count) {
-    return new CommandObject<>(commandArguments(ZPOPMIN).key(key).add(count), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZPOPMIN).key(key).add(count), getTupleListBuilder());
   }
 
   public final CommandObject<Tuple> zpopmax(byte[] key) {
@@ -1473,7 +1481,7 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zpopmax(byte[] key, int count) {
-    return new CommandObject<>(commandArguments(ZPOPMAX).key(key).add(count), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZPOPMAX).key(key).add(count), getTupleListBuilder());
   }
 
   public final CommandObject<Tuple> zpopmin(byte[] key) {
@@ -1481,24 +1489,51 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zpopmin(byte[] key, int count) {
-    return new CommandObject<>(commandArguments(ZPOPMIN).key(key).add(count), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZPOPMIN).key(key).add(count), getTupleListBuilder());
   }
 
   public final CommandObject<KeyedZSetElement> bzpopmax(double timeout, String... keys) {
-    return new CommandObject<>(commandArguments(BZPOPMAX).blocking().keys((Object[]) keys).add(timeout), BuilderFactory.KEYED_ZSET_ELEMENT);
+    return new CommandObject<>(commandArguments(BZPOPMAX).blocking().keys((Object[]) keys).add(timeout),
+        BuilderFactory.KEYED_ZSET_ELEMENT);
   }
 
   public final CommandObject<KeyedZSetElement> bzpopmin(double timeout, String... keys) {
-    return new CommandObject<>(commandArguments(BZPOPMIN).blocking().keys((Object[]) keys).add(timeout), BuilderFactory.KEYED_ZSET_ELEMENT);
+    return new CommandObject<>(commandArguments(BZPOPMIN).blocking().keys((Object[]) keys).add(timeout),
+        BuilderFactory.KEYED_ZSET_ELEMENT);
   }
 
   public final CommandObject<List<byte[]>> bzpopmax(double timeout, byte[]... keys) {
-    return new CommandObject<>(commandArguments(BZPOPMAX).blocking().keys((Object[]) keys).add(timeout), BuilderFactory.BINARY_LIST);
+    return new CommandObject<>(commandArguments(BZPOPMAX).blocking().keys((Object[]) keys)
+        .add(timeout), getBZPopBuilder());
   }
 
   public final CommandObject<List<byte[]>> bzpopmin(double timeout, byte[]... keys) {
-    return new CommandObject<>(commandArguments(BZPOPMIN).blocking().keys((Object[]) keys).add(timeout), BuilderFactory.BINARY_LIST);
+    return new CommandObject<>(commandArguments(BZPOPMIN).blocking().keys((Object[]) keys)
+        .add(timeout), getBZPopBuilder());
   }
+
+  private Builder<List<byte[]>> getBZPopBuilder() {
+    if (proto == RedisProtocol.RESP3) return DUMMY_BZPOP_BUILDER;
+    return BuilderFactory.BINARY_LIST;
+  }
+
+  // TODO: remove
+  private static final Builder<List<byte[]>> DUMMY_BZPOP_BUILDER = new Builder<List<byte[]>>() {
+    @Override
+    public List<byte[]> build(Object data) {
+      if (data == null) return null;
+      List<Object> input = (List<Object>) data;
+      List<byte[]> output = new ArrayList<>(input.size());
+      for (Object in : input) {
+        if (in instanceof Double) {
+          output.add(Protocol.toByteArray((Double) in));
+        } else {
+          output.add((byte[]) in);
+        }
+      }
+      return output;
+    }
+  };
 
   public final CommandObject<Long> zcount(String key, double min, double max) {
     return new CommandObject<>(commandArguments(ZCOUNT).key(key).add(min).add(max), BuilderFactory.LONG);
@@ -1526,12 +1561,12 @@ public class CommandObjects {
 
   public final CommandObject<List<Tuple>> zrangeWithScores(String key, long start, long stop) {
     return new CommandObject<>(commandArguments(ZRANGE).key(key)
-        .add(start).add(stop).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(start).add(stop).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeWithScores(String key, long start, long stop) {
     return new CommandObject<>(commandArguments(ZREVRANGE).key(key)
-        .add(start).add(stop).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(start).add(stop).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<String>> zrange(String key, ZRangeParams zRangeParams) {
@@ -1539,7 +1574,7 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zrangeWithScores(String key, ZRangeParams zRangeParams) {
-    return new CommandObject<>(commandArguments(ZRANGE).key(key).addParams(zRangeParams).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZRANGE).key(key).addParams(zRangeParams).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<Long> zrangestore(String dest, String src, ZRangeParams zRangeParams) {
@@ -1584,42 +1619,42 @@ public class CommandObjects {
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(String key, double min, double max) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(String key, String min, String max) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(String key, double max, double min) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(String key, String max, String min) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(String key, double min, double max, int offset, int count) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(String key, String min, String max, int offset, int count) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(String key, double max, double min, int offset, int count) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(String key, String max, String min, int offset, int count) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<byte[]>> zrange(byte[] key, long start, long stop) {
@@ -1632,12 +1667,12 @@ public class CommandObjects {
 
   public final CommandObject<List<Tuple>> zrangeWithScores(byte[] key, long start, long stop) {
     return new CommandObject<>(commandArguments(ZRANGE).key(key)
-        .add(start).add(stop).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(start).add(stop).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeWithScores(byte[] key, long start, long stop) {
     return new CommandObject<>(commandArguments(ZREVRANGE).key(key)
-        .add(start).add(stop).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(start).add(stop).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<byte[]>> zrange(byte[] key, ZRangeParams zRangeParams) {
@@ -1645,7 +1680,7 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> zrangeWithScores(byte[] key, ZRangeParams zRangeParams) {
-    return new CommandObject<>(commandArguments(ZRANGE).key(key).addParams(zRangeParams).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(ZRANGE).key(key).addParams(zRangeParams).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<Long> zrangestore(byte[] dest, byte[] src, ZRangeParams zRangeParams) {
@@ -1690,42 +1725,42 @@ public class CommandObjects {
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(byte[] key, double min, double max) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(byte[] key, byte[] min, byte[] max) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(byte[] key, double max, double min) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(byte[] key, byte[] max, byte[] min) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(byte[] key, double min, double max, int offset, int count) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrangeByScoreWithScores(byte[] key, byte[] min, byte[] max, int offset, int count) {
     return new CommandObject<>(commandArguments(ZRANGEBYSCORE).key(key).add(min).add(max)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(byte[] key, double max, double min, int offset, int count) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<List<Tuple>> zrevrangeByScoreWithScores(byte[] key, byte[] max, byte[] min, int offset, int count) {
     return new CommandObject<>(commandArguments(ZREVRANGEBYSCORE).key(key).add(max).add(min)
-        .add(LIMIT).add(offset).add(count).add(WITHSCORES), BuilderFactory.TUPLE_LIST);
+        .add(LIMIT).add(offset).add(count).add(WITHSCORES), getTupleListBuilder());
   }
 
   public final CommandObject<Long> zremrangeByRank(String key, long start, long stop) {
@@ -1818,7 +1853,7 @@ public class CommandObjects {
 
   public final CommandObject<Set<Tuple>> zdiffWithScores(String... keys) {
     return new CommandObject<>(commandArguments(ZDIFF).add(keys.length).keys((Object[]) keys)
-        .add(WITHSCORES), BuilderFactory.TUPLE_ZSET);
+        .add(WITHSCORES), getTupleSetBuilder());
   }
 
   public final CommandObject<Long> zdiffStore(String dstkey, String... keys) {
@@ -1831,7 +1866,7 @@ public class CommandObjects {
 
   public final CommandObject<Set<Tuple>> zdiffWithScores(byte[]... keys) {
     return new CommandObject<>(commandArguments(ZDIFF).add(keys.length).keys((Object[]) keys)
-        .add(WITHSCORES), BuilderFactory.TUPLE_ZSET);
+        .add(WITHSCORES), getTupleSetBuilder());
   }
 
   public final CommandObject<Long> zdiffStore(byte[] dstkey, byte[]... keys) {
@@ -1856,7 +1891,7 @@ public class CommandObjects {
 
   public final CommandObject<Set<Tuple>> zinterWithScores(ZParams params, String... keys) {
     return new CommandObject<>(commandArguments(ZINTER).add(keys.length).keys((Object[]) keys)
-        .addParams(params).add(WITHSCORES), BuilderFactory.TUPLE_ZSET);
+        .addParams(params).add(WITHSCORES), getTupleSetBuilder());
   }
 
   public final CommandObject<Long> zintercard(String... keys) {
@@ -1896,7 +1931,7 @@ public class CommandObjects {
 
   public final CommandObject<Set<Tuple>> zinterWithScores(ZParams params, byte[]... keys) {
     return new CommandObject<>(commandArguments(ZINTER).add(keys.length).keys((Object[]) keys)
-        .addParams(params).add(WITHSCORES), BuilderFactory.TUPLE_ZSET);
+        .addParams(params).add(WITHSCORES), getTupleSetBuilder());
   }
 
   public final CommandObject<Long> zunionstore(String dstkey, String... sets) {
@@ -1916,7 +1951,7 @@ public class CommandObjects {
 
   public final CommandObject<Set<Tuple>> zunionWithScores(ZParams params, String... keys) {
     return new CommandObject<>(commandArguments(ZUNION).add(keys.length).keys((Object[]) keys)
-        .addParams(params).add(WITHSCORES), BuilderFactory.TUPLE_ZSET);
+        .addParams(params).add(WITHSCORES), getTupleSetBuilder());
   }
 
   public final CommandObject<Long> zunionstore(byte[] dstkey, byte[]... sets) {
@@ -1936,7 +1971,7 @@ public class CommandObjects {
 
   public final CommandObject<Set<Tuple>> zunionWithScores(ZParams params, byte[]... keys) {
     return new CommandObject<>(commandArguments(ZUNION).add(keys.length).keys((Object[]) keys)
-        .addParams(params).add(WITHSCORES), BuilderFactory.TUPLE_ZSET);
+        .addParams(params).add(WITHSCORES), getTupleSetBuilder());
   }
 
   public final CommandObject<KeyValue<String, List<Tuple>>> zmpop(SortedSetOption option, String... keys) {
@@ -2006,7 +2041,8 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<GeoCoordinate>> geopos(String key, String... members) {
-    return new CommandObject<>(commandArguments(GEOPOS).key(key).addObjects((Object[]) members), BuilderFactory.GEO_COORDINATE_LIST);
+    return new CommandObject<>(commandArguments(GEOPOS).key(key).addObjects((Object[]) members),
+        BuilderFactory.GEO_COORDINATE_LIST);
   }
 
   public final CommandObject<Long> geoadd(byte[] key, double longitude, double latitude, byte[] member) {
@@ -2034,7 +2070,8 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<GeoCoordinate>> geopos(byte[] key, byte[]... members) {
-    return new CommandObject<>(commandArguments(GEOPOS).key(key).addObjects((Object[]) members), BuilderFactory.GEO_COORDINATE_LIST);
+    return new CommandObject<>(commandArguments(GEOPOS).key(key).addObjects((Object[]) members),
+        BuilderFactory.GEO_COORDINATE_LIST);
   }
 
   public final CommandObject<List<GeoRadiusResponse>> georadius(String key, double longitude, double latitude, double radius, GeoUnit unit) {
@@ -2648,7 +2685,7 @@ public class CommandObjects {
     Set<Map.Entry<String, StreamEntryID>> entrySet = streams.entrySet();
     entrySet.forEach(entry -> args.key(entry.getKey()));
     entrySet.forEach(entry -> args.add(entry.getValue()));
-    return new CommandObject<>(args, BuilderFactory.STREAM_READ_RESPONSE);
+    return new CommandObject<>(args, getStreamReadResponseBuilder());
   }
 
   public final CommandObject<List<Map.Entry<String, List<StreamEntry>>>> xreadGroup(
@@ -2660,7 +2697,7 @@ public class CommandObjects {
     Set<Map.Entry<String, StreamEntryID>> entrySet = streams.entrySet();
     entrySet.forEach(entry -> args.key(entry.getKey()));
     entrySet.forEach(entry -> args.add(entry.getValue()));
-    return new CommandObject<>(args, BuilderFactory.STREAM_READ_RESPONSE);
+    return new CommandObject<>(args, getStreamReadResponseBuilder());
   }
 
   public final CommandObject<List<byte[]>> xread(XReadParams xReadParams, Map.Entry<byte[], byte[]>... streams) {
@@ -2686,6 +2723,11 @@ public class CommandObjects {
       args.add(entry.getValue());
     }
     return new CommandObject<>(args, BuilderFactory.BINARY_LIST);
+  }
+
+  private Builder<List<Map.Entry<String, List<StreamEntry>>>> getStreamReadResponseBuilder() {
+    if (proto == RedisProtocol.RESP3) return BuilderFactory.STREAM_READ_RESPONSE_RESP3;
+    return BuilderFactory.STREAM_READ_RESPONSE;
   }
   // Stream commands
 
@@ -3379,7 +3421,8 @@ public class CommandObjects {
   }
 
   public final CommandObject<List<Tuple>> ftSugGetWithScores(String key, String prefix) {
-    return new CommandObject<>(commandArguments(SearchCommand.SUGGET).key(key).add(prefix).add(SearchKeyword.WITHSCORES), BuilderFactory.TUPLE_LIST);
+    return new CommandObject<>(commandArguments(SearchCommand.SUGGET).key(key).add(prefix)
+        .add(SearchKeyword.WITHSCORES), BuilderFactory.TUPLE_LIST);
   }
 
   public final CommandObject<List<Tuple>> ftSugGetWithScores(String key, String prefix, boolean fuzzy, int max) {
@@ -4190,6 +4233,7 @@ public class CommandObjects {
           SearchBuilderFactory.SEARCH_PROFILE_PROFILE.build(list.get(1)));
     }
   }
+
   private class JsonObjectBuilder<T> extends Builder<T> {
 
     private final Class<T> clazz;
@@ -4229,6 +4273,14 @@ public class CommandObjects {
       return new KeyValue<>(BuilderFactory.LONG.build(list.get(0)), BuilderFactory.BINARY.build(list.get(1)));
     }
   };
+
+  private Builder<List<Tuple>> getTupleListBuilder() {
+    return proto == RedisProtocol.RESP3 ? BuilderFactory.TUPLE_LIST_RESP3 : BuilderFactory.TUPLE_LIST;
+  }
+
+  private Builder<Set<Tuple>> getTupleSetBuilder() {
+    return proto == RedisProtocol.RESP3 ? BuilderFactory.TUPLE_ZSET_RESP3 : BuilderFactory.TUPLE_ZSET;
+  }
 
   private CommandArguments addFlatArgs(CommandArguments args, long... values) {
     for (long value : values) {
