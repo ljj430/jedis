@@ -1304,8 +1304,14 @@ public abstract class TransactionBase implements PipelineCommands, PipelineBinar
   }
 
   @Override
+  @Deprecated
   public Response<Long> zdiffStore(String dstKey, String... keys) {
     return appendCommand(commandObjects.zdiffStore(dstKey, keys));
+  }
+
+  @Override
+  public Response<Long> zdiffstore(String dstKey, String... keys) {
+    return appendCommand(commandObjects.zdiffstore(dstKey, keys));
   }
 
   @Override
@@ -1671,6 +1677,11 @@ public abstract class TransactionBase implements PipelineCommands, PipelineBinar
   @Override
   public Response<List<StreamConsumersInfo>> xinfoConsumers(String key, String group) {
     return appendCommand(commandObjects.xinfoConsumers(key, group));
+  }
+
+  @Override
+  public Response<List<StreamConsumerInfo>> xinfoConsumers2(String key, String group) {
+    return appendCommand(commandObjects.xinfoConsumers2(key, group));
   }
 
   @Override
@@ -3053,8 +3064,14 @@ public abstract class TransactionBase implements PipelineCommands, PipelineBinar
   }
 
   @Override
+  @Deprecated
   public Response<Long> zdiffStore(byte[] dstkey, byte[]... keys) {
     return appendCommand(commandObjects.zdiffStore(dstkey, keys));
+  }
+
+  @Override
+  public Response<Long> zdiffstore(byte[] dstkey, byte[]... keys) {
+    return appendCommand(commandObjects.zdiffstore(dstkey, keys));
   }
 
   @Override
@@ -3959,22 +3976,22 @@ public abstract class TransactionBase implements PipelineCommands, PipelineBinar
   }
 
   @Override
-  public Response<List<TSKeyedElements>> tsMRange(long fromTimestamp, long toTimestamp, String... filters) {
+  public Response<Map<String, TSMRangeElements>> tsMRange(long fromTimestamp, long toTimestamp, String... filters) {
     return appendCommand(commandObjects.tsMRange(fromTimestamp, toTimestamp, filters));
   }
 
   @Override
-  public Response<List<TSKeyedElements>> tsMRange(TSMRangeParams multiRangeParams) {
+  public Response<Map<String, TSMRangeElements>> tsMRange(TSMRangeParams multiRangeParams) {
     return appendCommand(commandObjects.tsMRange(multiRangeParams));
   }
 
   @Override
-  public Response<List<TSKeyedElements>> tsMRevRange(long fromTimestamp, long toTimestamp, String... filters) {
+  public Response<Map<String, TSMRangeElements>> tsMRevRange(long fromTimestamp, long toTimestamp, String... filters) {
     return appendCommand(commandObjects.tsMRevRange(fromTimestamp, toTimestamp, filters));
   }
 
   @Override
-  public Response<List<TSKeyedElements>> tsMRevRange(TSMRangeParams multiRangeParams) {
+  public Response<Map<String, TSMRangeElements>> tsMRevRange(TSMRangeParams multiRangeParams) {
     return appendCommand(commandObjects.tsMRevRange(multiRangeParams));
   }
 
@@ -3989,7 +4006,7 @@ public abstract class TransactionBase implements PipelineCommands, PipelineBinar
   }
 
   @Override
-  public Response<List<TSKeyValue<TSElement>>> tsMGet(TSMGetParams multiGetParams, String... filters) {
+  public Response<Map<String, TSMGetElement>> tsMGet(TSMGetParams multiGetParams, String... filters) {
     return appendCommand(commandObjects.tsMGet(multiGetParams, filters));
   }
 

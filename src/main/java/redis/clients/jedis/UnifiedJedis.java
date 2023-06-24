@@ -2376,8 +2376,14 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
+  @Deprecated
   public long zdiffStore(String dstkey, String... keys) {
     return executeCommand(commandObjects.zdiffStore(dstkey, keys));
+  }
+
+  @Override
+  public long zdiffstore(String dstkey, String... keys) {
+    return executeCommand(commandObjects.zdiffstore(dstkey, keys));
   }
 
   @Override
@@ -2391,8 +2397,14 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
+  @Deprecated
   public long zdiffStore(byte[] dstkey, byte[]... keys) {
     return executeCommand(commandObjects.zdiffStore(dstkey, keys));
+  }
+
+  @Override
+  public long zdiffstore(byte[] dstkey, byte[]... keys) {
+    return executeCommand(commandObjects.zdiffstore(dstkey, keys));
   }
 
   @Override
@@ -3014,6 +3026,11 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public List<StreamConsumersInfo> xinfoConsumers(String key, String group) {
     return executeCommand(commandObjects.xinfoConsumers(key, group));
+  }
+
+  @Override
+  public List<StreamConsumerInfo> xinfoConsumers2(String key, String group) {
+    return executeCommand(commandObjects.xinfoConsumers2(key, group));
   }
 
   @Override
@@ -4300,22 +4317,22 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<TSKeyedElements> tsMRange(long fromTimestamp, long toTimestamp, String... filters) {
+  public Map<String, TSMRangeElements> tsMRange(long fromTimestamp, long toTimestamp, String... filters) {
     return executeCommand(commandObjects.tsMRange(fromTimestamp, toTimestamp, filters));
   }
 
   @Override
-  public List<TSKeyedElements> tsMRange(TSMRangeParams multiRangeParams) {
+  public Map<String, TSMRangeElements> tsMRange(TSMRangeParams multiRangeParams) {
     return executeCommand(commandObjects.tsMRange(multiRangeParams));
   }
 
   @Override
-  public List<TSKeyedElements> tsMRevRange(long fromTimestamp, long toTimestamp, String... filters) {
+  public Map<String, TSMRangeElements> tsMRevRange(long fromTimestamp, long toTimestamp, String... filters) {
     return executeCommand(commandObjects.tsMRevRange(fromTimestamp, toTimestamp, filters));
   }
 
   @Override
-  public List<TSKeyedElements> tsMRevRange(TSMRangeParams multiRangeParams) {
+  public Map<String, TSMRangeElements> tsMRevRange(TSMRangeParams multiRangeParams) {
     return executeCommand(commandObjects.tsMRevRange(multiRangeParams));
   }
 
@@ -4330,7 +4347,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   }
 
   @Override
-  public List<TSKeyValue<TSElement>> tsMGet(TSMGetParams multiGetParams, String... filters) {
+  public Map<String, TSMGetElement> tsMGet(TSMGetParams multiGetParams, String... filters) {
     return executeCommand(commandObjects.tsMGet(multiGetParams, filters));
   }
 
@@ -4785,5 +4802,9 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   public void setJsonObjectMapper(JsonObjectMapper jsonObjectMapper) {
     this.commandObjects.setJsonObjectMapper(jsonObjectMapper);
+  }
+
+  public void setDefaultSearchDialect(int dialect) {
+    this.commandObjects.setDefaultSearchDialect(dialect);
   }
 }

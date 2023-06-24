@@ -26,23 +26,34 @@
 - `zunion(ZParams params, byte[]... keys)` method now returns `List<byte[]>` (instead of `Set<byte[]>`).
 - Both `zunionWithScores(ZParams params, String... keys)` and `zunionWithScores(ZParams params, byte[]... keys)` methods now return `List<Tuple>` (instead of `Set<Tuple>`).
 
+- `tsMGet(TSMGetParams multiGetParams, String... filters)` method now returns `Map<String, TSMGetElement>` instead of `List<TSKeyValue<TSElement>>`.
+
+- Following methods now return `Map<String, TSMRangeElements>` instead of `List<TSKeyedElements>`:
+  - `tsMRange(long fromTimestamp, long toTimestamp, String... filters)`
+  - `tsMRange(TSMRangeParams multiRangeParams)`
+  - `tsMRevRange(long fromTimestamp, long toTimestamp, String... filters)`
+  - `tsMRevRange(TSMRangeParams multiRangeParams)`
+
 - `getAgeSeconds()` in `AccessControlLogEntry` now returns `Double` instead of `String`.
 
 - `graphSlowlog(String graphName)` now returns `List<List<Object>>` (instead of `List<List<String>>`).
 
 - All _payload_ related parameters are removed from _search_ related classes; namely `Document`, `IndexDefinition`, `Query`.
 
-- `KeyedZSetElement` class is removed.
-
-- `KeyedListElement` class is removed.
-
-- `STREAM_AUTO_CLAIM_ID_RESPONSE` in BuilderFactory has been renamed to `STREAM_AUTO_CLAIM_JUSTID_RESPONSE`.
+- Following classes have been removed:
+  - `KeyedZSetElement`
+  - `KeyedListElement`
+  - `TSKeyValue`
+  - `TSKeyedElements`
+  - `Limit`
 
 - Following BuilderFactory implementations have been removed:
   - `BYTE_ARRAY` (use `BINARY`)
   - `BYTE_ARRAY_LIST` (use `BINARY_LIST`)
   - `BINARY_MAP_FROM_PAIRS`
   - `STRING_ORDERED_SET`
+
+- `RedisJsonCommands` and `RedisJsonPipelineCommands` interfaces have been moved into `redis.clients.jedis.json.commands` package.
 
 - `Queable` class is removed.
 
@@ -57,6 +68,22 @@
 
 - `getParams()` method is removed from `SortingParams` class.
 
+- `addCommandEncodedArguments` and `addCommandBinaryArguments` methods have been removed from `FieldName` class.
+
+- `getArgs` method is removed from `AggregationBuilder` class.
+
+- `limit` and `getArgs` methods have been removed from `Group` class.
+
+- `Reducer` abstract class is refactored:
+  - `Reducer(String field)` constructor is removed; `Reducer(String name, String field)` constructor is added.
+  - `Reducer(String name)` constructor is added; it will cause runtime error with older `Reducer(String field)` constructor.
+  - `getName` method is removed.
+  - `getAlias` method is removed.
+  - `setAlias` method is removed; use `as` method.
+  - `setAliasAsField` method is removed.
+  - `getOwnArgs` method is now abstract.
+  - `getArgs` method is removed.
+
 - All variants of `blmpop` and `bzmpop` methods now take `double timeout` parameter instead of `long timeout` parameter.
   This is breaking ONLY IF you are using `Long` for timeout.
 
@@ -64,13 +91,9 @@
 
 - `quit()` method has been removed from `Connection` and `ServerCommands` interface and implementations.
 
-- `select(int index)` method has been removed from `Connection`.
-
 - `updatePassword(String password)` method has been removed from `JedisClientConfig` and implementations.
 
-- `setPassword(String password)` method has been removed from `ConnectionFactory`.
-
-- `setPassword(String password)` method has been removed from `JedisFactory`.
+- `setPassword(String password)` method has been removed from both `JedisFactory` and `ConnectionFactory` classes.
 
 - `get()` option has been removed from `SetParams`.  Following methods have been added in Jedis/UnifiedJedis for convenience:
   - `setGet(String key, String value)` method has been added in `StringCommands` interface.
