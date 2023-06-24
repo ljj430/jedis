@@ -16,6 +16,7 @@ public class Document implements Serializable {
 
   private final String id;
   private double score;
+  private byte[] payload;
   private final Map<String, Object> properties;
 
   public Document(String id, double score) {
@@ -31,9 +32,14 @@ public class Document implements Serializable {
   }
 
   public Document(String id, Map<String, Object> fields, double score) {
+    this(id, fields, score, null);
+  }
+
+  public Document(String id, Map<String, Object> fields, double score, byte[] payload) {
     this.id = id;
-    this.properties = fields;
+    this.properties = new HashMap<>(fields);
     this.score = score;
+    this.payload = payload;
   }
 
   public Iterable<Map.Entry<String, Object>> getProperties() {
@@ -41,11 +47,12 @@ public class Document implements Serializable {
   }
 
   public static Document load(String id, double score, byte[] payload, List<byte[]> fields) {
-    return Document.load(id, score, fields, true);
+    return Document.load(id, score, payload, fields, true);
   }
 
-  public static Document load(String id, double score, List<byte[]> fields, boolean decode) {
+  public static Document load(String id, double score, byte[] payload, List<byte[]> fields, boolean decode) {
     Document ret = new Document(id, score);
+    ret.payload = payload;
     if (fields != null) {
       for (int i = 0; i < fields.size(); i += 2) {
         byte[] rawKey = fields.get(i);
@@ -96,6 +103,10 @@ public class Document implements Serializable {
     return score;
   }
 
+  public byte[] getPayload() {
+    return payload;
+  }
+
   /**
    * Set the document's score
    *
@@ -121,6 +132,7 @@ public class Document implements Serializable {
   @Override
   public String toString() {
     return "id:" + this.getId() + ", score: " + this.getScore() +
+            ", payload:" + (this.getPayload() == null ? "null" : SafeEncoder.encode(this.getPayload())) +
             ", properties:" + this.getProperties();
   }
 }

@@ -85,6 +85,7 @@ public class RedisBloomProtocol {
     ADD("TOPK.ADD"),
     INCRBY("TOPK.INCRBY"),
     QUERY("TOPK.QUERY"),
+    COUNT("TOPK.COUNT"),
     LIST("TOPK.LIST"),
     INFO("TOPK.INFO");
 

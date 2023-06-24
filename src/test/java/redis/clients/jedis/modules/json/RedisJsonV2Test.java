@@ -1,5 +1,6 @@
 package redis.clients.jedis.modules.json;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.*;
 import static redis.clients.jedis.json.Path2.ROOT_PATH;
@@ -7,10 +8,7 @@ import static redis.clients.jedis.modules.json.JsonObjects.*;
 
 import com.google.gson.Gson;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.BeforeClass;
@@ -178,7 +176,7 @@ public class RedisJsonV2Test extends RedisModuleCommandsTestBase {
     assertEquals(singletonList(float.class), client.jsonType("foobar", Path2.of(".fooF")));
     assertEquals(singletonList(List.class), client.jsonType("foobar", Path2.of(".fooArr")));
     assertEquals(singletonList(boolean.class), client.jsonType("foobar", Path2.of(".fooB")));
-    assertEquals(Collections.emptyList(), client.jsonType("foobar", Path2.of(".fooErr")));
+    assertEquals(emptyList(), client.jsonType("foobar", Path2.of(".fooErr")));
   }
 
   @Test
@@ -326,7 +324,7 @@ public class RedisJsonV2Test extends RedisModuleCommandsTestBase {
   @Test
   public void arrIndexNonExistentPath() {
     client.jsonSet("foobar", ROOT_PATH, gson.toJson(new FooBarObject()));
-    assertEquals(Collections.emptyList(), client.jsonArrIndex("foobar", Path2.of(".barArr"), gson.toJson("x")));
+    assertEquals(emptyList(), client.jsonArrIndex("foobar", Path2.of(".barArr"), gson.toJson("x")));
   }
 
   @Test
@@ -401,7 +399,7 @@ public class RedisJsonV2Test extends RedisModuleCommandsTestBase {
 
   @Test
   public void debugMemory() {
-    assertEquals(Collections.emptyList(), client.jsonDebugMemory("json", ROOT_PATH));
+    assertEquals(emptyList(), client.jsonDebugMemory("json", ROOT_PATH));
 
     client.jsonSet("json", new JSONObject("{ foo: 'bar', bar: { foo: 10 }}"));
     // it is okay as long as any 'long' is returned
@@ -432,8 +430,7 @@ public class RedisJsonV2Test extends RedisModuleCommandsTestBase {
     assertEquals("[", arr.get(0));
     assertNull(arr.get(1));
     assertEquals(Long.valueOf(3), arr.get(2));
-    //assertEquals("2.5", arr.get(3));
-    MatcherAssert.assertThat(arr.get(3), Matchers.isOneOf("2.5", 2.5));
+    assertEquals("2.5", arr.get(3));
     assertEquals("true", arr.get(4));
   }
 

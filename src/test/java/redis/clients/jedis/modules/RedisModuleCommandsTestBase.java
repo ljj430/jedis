@@ -6,7 +6,6 @@ import org.junit.After;
 import org.junit.Before;
 import redis.clients.jedis.Connection;
 
-import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Protocol;
@@ -38,7 +37,7 @@ public abstract class RedisModuleCommandsTestBase {
     try (Jedis jedis = new Jedis(hnp)) {
       jedis.flushAll();
     }
-    client = new UnifiedJedis(hnp, DefaultJedisClientConfig.builder().resp3().build());
+    client = new UnifiedJedis(hnp);
   }
 
   @After

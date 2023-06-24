@@ -60,16 +60,12 @@ public class JedisTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void connectWithEmptyConfigInterface() {
+  public void connectWithConfigInterface() {
     try (Jedis jedis = new Jedis(hnp, new JedisClientConfig() {
     })) {
       jedis.auth("foobared");
       assertEquals("PONG", jedis.ping());
     }
-  }
-
-  @Test
-  public void connectWithConfigInterface() {
     try (Jedis jedis = new Jedis(hnp, new JedisClientConfig() {
       @Override
       public String getPassword() {
@@ -77,24 +73,6 @@ public class JedisTest extends JedisCommandsTestBase {
       }
     })) {
       assertEquals("PONG", jedis.ping());
-    }
-  }
-
-  @Test
-  public void connectOnResp3Protocol() {
-    try (Jedis jedis = new Jedis(hnp, DefaultJedisClientConfig.builder()
-        .protocol(RedisProtocol.RESP3).password("foobared").build())) {
-      assertEquals("PONG", jedis.ping());
-      assertEquals(RedisProtocol.RESP3, jedis.getConnection().getRedisProtocol());
-    }
-  }
-
-  @Test
-  public void connectOnResp3ProtocolShortcut() {
-    try (Jedis jedis = new Jedis(hnp, DefaultJedisClientConfig.builder().resp3()
-        .password("foobared").build())) {
-      assertEquals("PONG", jedis.ping());
-      assertEquals(RedisProtocol.RESP3, jedis.getConnection().getRedisProtocol());
     }
   }
 
@@ -158,7 +136,7 @@ public class JedisTest extends JedisCommandsTestBase {
 //  }
 
   @Test
-  public void connectWithUrl() {
+  public void startWithUrl() {
     try (Jedis j = new Jedis("localhost", 6380)) {
       j.auth("foobared");
       j.select(2);
@@ -172,7 +150,7 @@ public class JedisTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void connectWithUri() throws URISyntaxException {
+  public void startWithUri() throws URISyntaxException {
     try (Jedis j = new Jedis("localhost", 6380)) {
       j.auth("foobared");
       j.select(2);
@@ -180,34 +158,6 @@ public class JedisTest extends JedisCommandsTestBase {
     }
 
     try (Jedis jedis = new Jedis(new URI("redis://:foobared@localhost:6380/2"))) {
-      assertEquals("PONG", jedis.ping());
-      assertEquals("bar", jedis.get("foo"));
-    }
-  }
-
-  @Test
-  public void connectWithUrlOnResp3() {
-    try (Jedis j = new Jedis("localhost", 6380)) {
-      j.auth("foobared");
-      j.select(2);
-      j.set("foo", "bar");
-    }
-
-    try (Jedis j2 = new Jedis("redis://:foobared@localhost:6380/2?protocol=3")) {
-      assertEquals("PONG", j2.ping());
-      assertEquals("bar", j2.get("foo"));
-    }
-  }
-
-  @Test
-  public void connectWithUriOnResp3() throws URISyntaxException {
-    try (Jedis j = new Jedis("localhost", 6380)) {
-      j.auth("foobared");
-      j.select(2);
-      j.set("foo", "bar");
-    }
-
-    try (Jedis jedis = new Jedis(new URI("redis://:foobared@localhost:6380/2?protocol=3"))) {
       assertEquals("PONG", jedis.ping());
       assertEquals("bar", jedis.get("foo"));
     }
@@ -282,7 +232,7 @@ public class JedisTest extends JedisCommandsTestBase {
 
   @Test
   public void checkDisconnectOnQuit() {
-    jedis.disconnect();
+    jedis.quit();
     assertFalse(jedis.isConnected());
   }
 

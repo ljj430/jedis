@@ -14,10 +14,6 @@ import redis.clients.jedis.util.Hashing;
 import redis.clients.jedis.util.JedisClusterHashTag;
 import redis.clients.jedis.util.KeyValue;
 
-/**
- * @deprecated Sharding/Sharded feature will be removed in next major release.
- */
-@Deprecated
 public class ShardedCommandObjects extends CommandObjects {
 
   private final Hashing algo;
