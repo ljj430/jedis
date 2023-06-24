@@ -81,18 +81,20 @@ public class JedisTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void resp3Protocol() {
+  public void connectOnResp3Protocol() {
     try (Jedis jedis = new Jedis(hnp, DefaultJedisClientConfig.builder()
-        .protocol(RedisProtocol.RESP3).user("default").password("foobared").build())) {
+        .protocol(RedisProtocol.RESP3).password("foobared").build())) {
       assertEquals("PONG", jedis.ping());
+      assertEquals(RedisProtocol.RESP3, jedis.getConnection().getRedisProtocol());
     }
   }
 
   @Test
-  public void resp3Shortcut() {
+  public void connectOnResp3ProtocolShortcut() {
     try (Jedis jedis = new Jedis(hnp, DefaultJedisClientConfig.builder().resp3()
-        .user("default").password("foobared").build())) {
+        .password("foobared").build())) {
       assertEquals("PONG", jedis.ping());
+      assertEquals(RedisProtocol.RESP3, jedis.getConnection().getRedisProtocol());
     }
   }
 
@@ -100,27 +102,30 @@ public class JedisTest extends JedisCommandsTestBase {
   public void timeoutConnection() throws Exception {
     Jedis jedis = new Jedis("localhost", 6379, 15000);
     jedis.auth("foobared");
-    String timeout = jedis.configGet("timeout").get(1);
-    jedis.configSet("timeout", "1");
-    Thread.sleep(2000);
+    // read current config
+    final String timeout = jedis.configGet("timeout").get(1);
     try {
-      jedis.hmget("foobar", "foo");
-      fail("Operation should throw JedisConnectionException");
-    } catch (JedisConnectionException jce) {
-      // expected
+      jedis.configSet("timeout", "1");
+      Thread.sleep(5000);
+      try {
+        jedis.hmget("foobar", "foo");
+        fail("Operation should throw JedisConnectionException");
+      } catch (JedisConnectionException jce) {
+        // expected
+      }
+      jedis.close();
+    } finally {
+      // reset config
+      jedis = new Jedis("localhost", 6379);
+      jedis.auth("foobared");
+      jedis.configSet("timeout", timeout);
+      jedis.close();
     }
-    jedis.close();
-
-    // reset config
-    jedis = new Jedis("localhost", 6379);
-    jedis.auth("foobared");
-    jedis.configSet("timeout", timeout);
-    jedis.close();
   }
 
   @Test
   public void infiniteTimeout() throws Exception {
-    try (Jedis timeoutJedis = new Jedis("localhost", 6379, 350, 350, 350)) {
+    try (Jedis timeoutJedis = new Jedis("localhost", 6379, 200, 200, 200)) {
       timeoutJedis.auth("foobared");
       try {
         timeoutJedis.blpop(0, "foo");
@@ -153,7 +158,7 @@ public class JedisTest extends JedisCommandsTestBase {
 //  }
 
   @Test
-  public void startWithUrl() {
+  public void connectWithUrl() {
     try (Jedis j = new Jedis("localhost", 6380)) {
       j.auth("foobared");
       j.select(2);
@@ -167,7 +172,7 @@ public class JedisTest extends JedisCommandsTestBase {
   }
 
   @Test
-  public void startWithUri() throws URISyntaxException {
+  public void connectWithUri() throws URISyntaxException {
     try (Jedis j = new Jedis("localhost", 6380)) {
       j.auth("foobared");
       j.select(2);
@@ -175,6 +180,34 @@ public class JedisTest extends JedisCommandsTestBase {
     }
 
     try (Jedis jedis = new Jedis(new URI("redis://:foobared@localhost:6380/2"))) {
+      assertEquals("PONG", jedis.ping());
+      assertEquals("bar", jedis.get("foo"));
+    }
+  }
+
+  @Test
+  public void connectWithUrlOnResp3() {
+    try (Jedis j = new Jedis("localhost", 6380)) {
+      j.auth("foobared");
+      j.select(2);
+      j.set("foo", "bar");
+    }
+
+    try (Jedis j2 = new Jedis("redis://:foobared@localhost:6380/2?protocol=3")) {
+      assertEquals("PONG", j2.ping());
+      assertEquals("bar", j2.get("foo"));
+    }
+  }
+
+  @Test
+  public void connectWithUriOnResp3() throws URISyntaxException {
+    try (Jedis j = new Jedis("localhost", 6380)) {
+      j.auth("foobared");
+      j.select(2);
+      j.set("foo", "bar");
+    }
+
+    try (Jedis jedis = new Jedis(new URI("redis://:foobared@localhost:6380/2?protocol=3"))) {
       assertEquals("PONG", jedis.ping());
       assertEquals("bar", jedis.get("foo"));
     }

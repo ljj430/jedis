@@ -65,7 +65,8 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   public UnifiedJedis(final URI uri) {
     this(JedisURIHelper.getHostAndPort(uri), DefaultJedisClientConfig.builder()
         .user(JedisURIHelper.getUser(uri)).password(JedisURIHelper.getPassword(uri))
-        .database(JedisURIHelper.getDBIndex(uri)).ssl(JedisURIHelper.isRedisSSLScheme(uri)).build());
+        .database(JedisURIHelper.getDBIndex(uri)).protocol(JedisURIHelper.getRedisProtocol(uri))
+        .ssl(JedisURIHelper.isRedisSSLScheme(uri)).build());
   }
 
   public UnifiedJedis(final URI uri, JedisClientConfig config) {
@@ -75,6 +76,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
         .blockingSocketTimeoutMillis(config.getBlockingSocketTimeoutMillis())
         .user(JedisURIHelper.getUser(uri)).password(JedisURIHelper.getPassword(uri))
         .database(JedisURIHelper.getDBIndex(uri)).clientName(config.getClientName())
+        .protocol(JedisURIHelper.getRedisProtocol(uri))
         .ssl(JedisURIHelper.isRedisSSLScheme(uri)).sslSocketFactory(config.getSslSocketFactory())
         .sslParameters(config.getSslParameters()).hostnameVerifier(config.getHostnameVerifier())
         .build());
@@ -3434,6 +3436,16 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public long waitReplicas(byte[] sampleKey, int replicas, long timeout) {
     return executeCommand(commandObjects.waitReplicas(sampleKey, replicas, timeout));
+  }
+
+  @Override
+  public KeyValue<Long, Long> waitAOF(String sampleKey, long numLocal, long numReplicas, long timeout) {
+    return executeCommand(commandObjects.waitAOF(sampleKey, numLocal, numReplicas, timeout));
+  }
+
+  @Override
+  public KeyValue<Long, Long> waitAOF(byte[] sampleKey, long numLocal, long numReplicas, long timeout) {
+    return executeCommand(commandObjects.waitAOF(sampleKey, numLocal, numReplicas, timeout));
   }
 
   @Override
