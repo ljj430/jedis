@@ -10,11 +10,27 @@ import redis.clients.jedis.args.Rawable;
 
 public class XPendingParams implements IParams {
 
+  private boolean legacy = true;
   private Long idle;
-  private Rawable start;
-  private Rawable end;
-  private Integer count;
+  private Rawable start; // TODO: final
+  private Rawable end; // TODO: final
+  private int count = Integer.MIN_VALUE; // TODO: final
   private Rawable consumer;
+
+  /**
+   * @deprecated Use {@link XPendingParams#XPendingParams(redis.clients.jedis.StreamEntryID, redis.clients.jedis.StreamEntryID, int)}.
+   */
+  @Deprecated
+  public XPendingParams() {
+  }
+
+  /**
+   * @deprecated Use {@link XPendingParams#xPendingParams(redis.clients.jedis.StreamEntryID, redis.clients.jedis.StreamEntryID, int)}.
+   */
+  @Deprecated
+  public static XPendingParams xPendingParams() {
+    return new XPendingParams();
+  }
 
   public XPendingParams(StreamEntryID start, StreamEntryID end, int count) {
     this(start.toString(), end.toString(), count);
@@ -28,16 +44,11 @@ public class XPendingParams implements IParams {
     this(from(start), from(end), count);
   }
 
-  private XPendingParams(Rawable start, Rawable end, Integer count) {
+  private XPendingParams(Rawable start, Rawable end, int count) {
+    this.legacy = false;
     this.start = start;
     this.end = end;
     this.count = count;
-  }
-
-  public XPendingParams() {
-    this.start = null;
-    this.end = null;
-    this.count = null;
   }
 
   public static XPendingParams xPendingParams(StreamEntryID start, StreamEntryID end, int count) {
@@ -52,29 +63,24 @@ public class XPendingParams implements IParams {
     return new XPendingParams(start, end, count);
   }
 
-  public static XPendingParams xPendingParams() {
-    return new XPendingParams();
-  }
-
   public XPendingParams idle(long idle) {
     this.idle = idle;
     return this;
   }
 
+  @Deprecated
   public XPendingParams start(StreamEntryID start) {
-    if (this.start != null) throw new IllegalStateException("'start' is already set.");
     this.start = from(start.toString());
     return this;
   }
 
+  @Deprecated
   public XPendingParams end(StreamEntryID end) {
-    if (this.end != null) throw new IllegalStateException("'end' is already set.");
     this.end = from(end.toString());
     return this;
   }
 
   public XPendingParams count(int count) {
-    if (this.count != null) throw new IllegalStateException("'count' is already set.");
     this.count = count;
     return this;
   }
@@ -91,17 +97,30 @@ public class XPendingParams implements IParams {
 
   @Override
   public void addParams(CommandArguments args) {
-    if (count == null) {
-      throw new IllegalStateException("start, end and count must be set.");
-    }
-    if (start == null) start = from("-");
-    if (end == null) end = from("+");
 
     if (idle != null) {
       args.add(IDLE).add(toByteArray(idle));
     }
 
-    args.add(start).add(end).add(toByteArray(count));
+    if (legacy) {
+      if (start == null) {
+        args.add("-");
+      } else {
+        args.add(start);
+      }
+
+      if (end == null) {
+        args.add("+");
+      } else {
+        args.add(end);
+      }
+
+      if (count != Integer.MIN_VALUE) {
+        args.add(toByteArray(count));
+      }
+    } else {
+      args.add(start).add(end).add(toByteArray(count));
+    }
 
     if (consumer != null) {
       args.add(consumer);

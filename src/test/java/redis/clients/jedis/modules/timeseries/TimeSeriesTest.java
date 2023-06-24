@@ -16,7 +16,6 @@ import redis.clients.jedis.modules.RedisModuleCommandsTestBase;
 import redis.clients.jedis.timeseries.*;
 import redis.clients.jedis.util.KeyValue;
 
-@org.junit.Ignore
 public class TimeSeriesTest extends RedisModuleCommandsTestBase {
 
   @BeforeClass

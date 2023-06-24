@@ -19,10 +19,6 @@ import redis.clients.jedis.ShardedCommandArguments;
 import redis.clients.jedis.exceptions.JedisException;
 import redis.clients.jedis.util.Hashing;
 
-/**
- * @deprecated Sharding/Sharded feature will be removed in next major release.
- */
-@Deprecated
 public class ShardedConnectionProvider implements ConnectionProvider {
 
   private final TreeMap<Long, HostAndPort> nodes = new TreeMap<>();

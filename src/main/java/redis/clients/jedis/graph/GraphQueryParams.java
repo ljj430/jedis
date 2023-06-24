@@ -89,4 +89,10 @@ public class GraphQueryParams implements IParams {
   public boolean isReadonly() {
     return readonly;
   }
+
+  @Deprecated
+  public CommandArguments getArguments(String graphName) {
+    return new CommandArguments(!readonly ? GraphCommand.QUERY : GraphCommand.RO_QUERY)
+        .key(graphName).addParams(this);
+  }
 }

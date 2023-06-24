@@ -7,10 +7,6 @@ import javax.net.ssl.SSLSocketFactory;
 
 public interface JedisClientConfig {
 
-  default RedisProtocol getRedisProtocol() {
-    return null;
-  }
-
   /**
    * @return Connection timeout in milliseconds
    */
@@ -42,6 +38,10 @@ public interface JedisClientConfig {
 
   default String getPassword() {
     return null;
+  }
+
+  @Deprecated
+  default void updatePassword(String password) {
   }
 
   default Supplier<RedisCredentials> getCredentialsProvider() {
